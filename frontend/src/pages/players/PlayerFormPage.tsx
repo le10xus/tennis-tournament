@@ -53,7 +53,7 @@ export function PlayerFormPage() {
     setSaving(true)
     setErrors({})
     try {
-      const payload = { ...form, birth_date: form.birth_date || null }
+      const payload = { ...form, birth_date: (form.birth_date || null) as unknown as string }
       if (isEdit) {
         await playersApi.update(Number(id), payload)
       } else {

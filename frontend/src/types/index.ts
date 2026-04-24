@@ -1,6 +1,6 @@
 export type { Player, PlayerFormData, ApiErrors, Gender, RatingType } from './player'
 export type { Match, MatchFormData, MatchApiErrors, MatchStatus, GenderType, PlayerBrief } from './match'
-export type { TournamentBrief } from './tournament'
+export type { Tournament, TournamentBrief, TournamentFormData, TournamentApiErrors } from './tournament'
 
 export interface Paginated<T> {
   count: number

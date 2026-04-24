@@ -1,0 +1,7 @@
+/* page-title, form-card, form-row, form-actions, form-error-global, field, field-label,
+   field-input, field-error — in index.css and FormField.css */
+
+.field-textarea {
+  resize: vertical;
+  min-height: 6rem;
+}

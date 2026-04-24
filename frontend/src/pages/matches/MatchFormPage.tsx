@@ -86,7 +86,7 @@ export function MatchFormPage() {
     try {
       const payload = {
         ...form,
-        scheduled_at: form.scheduled_at || null,
+        scheduled_at: (form.scheduled_at || null) as unknown as string,
         score: form.score || '',
       }
       if (isEdit) {

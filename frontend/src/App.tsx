@@ -4,6 +4,8 @@ import { PlayerListPage } from './pages/players/PlayerListPage'
 import { PlayerFormPage } from './pages/players/PlayerFormPage'
 import { MatchListPage } from './pages/matches/MatchListPage'
 import { MatchFormPage } from './pages/matches/MatchFormPage'
+import { TournamentListPage } from './pages/tournaments/TournamentListPage'
+import { TournamentFormPage } from './pages/tournaments/TournamentFormPage'
 import { LoginPage } from './pages/auth/LoginPage'
 import { AuthProvider } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
@@ -31,7 +33,11 @@ export default function App() {
                 <Route path=":id/edit" element={<MatchFormPage />} />
               </Route>
 
-              <Route path="tournaments" element={<div style={{ padding: '2rem 0', color: 'var(--text)' }}>Страница турниров — в разработке</div>} />
+              <Route path="tournaments">
+                <Route index element={<TournamentListPage />} />
+                <Route path="new" element={<TournamentFormPage />} />
+                <Route path=":id/edit" element={<TournamentFormPage />} />
+              </Route>
             </Route>
           </Route>
         </Routes>

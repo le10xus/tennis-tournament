@@ -1,0 +1,60 @@
+.tournament-link {
+  color: var(--text-h);
+  text-decoration: none;
+}
+
+.tournament-link:hover {
+  color: var(--accent);
+}
+
+.filters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.filter-select {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Status badges */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge--blue {
+  background: #ebf4ff;
+  color: #2b6cb0;
+}
+
+.badge--green {
+  background: #f0fff4;
+  color: #276749;
+}
+
+.badge--gray {
+  background: #f7f7f7;
+  color: #718096;
+}
+
+.badge--neutral {
+  background: #fafafa;
+  color: #a0aec0;
+}
