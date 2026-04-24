@@ -40,6 +40,38 @@
   color: var(--text-h);
 }
 
+.login-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--code-bg);
+  border-radius: 8px;
+}
+
+.login-tab {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.login-tab:hover:not(.login-tab--active) {
+  color: var(--text-h);
+}
+
+.login-tab--active {
+  background: var(--bg);
+  color: var(--text-h);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
 .login-submit {
   width: 100%;
   justify-content: center;

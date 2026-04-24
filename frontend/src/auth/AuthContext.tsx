@@ -3,10 +3,19 @@ import { http, tokenStorage } from '../api/http'
 
 const USERNAME_KEY = 'auth.username'
 
+export interface RegisterPayload {
+  username: string
+  password: string
+  email?: string
+  first_name?: string
+  last_name?: string
+}
+
 interface AuthState {
   username: string | null
   isAuthenticated: boolean
   login: (username: string, password: string) => Promise<void>
+  register: (payload: RegisterPayload) => Promise<void>
   logout: () => void
 }
 
@@ -39,6 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setHasToken(true)
   }, [])
 
+  const register = useCallback(async (payload: RegisterPayload) => {
+    const data = await http.post<TokenResponse & { username: string }>('/auth/register/', payload)
+    tokenStorage.set(data.access, data.refresh)
+    localStorage.setItem(USERNAME_KEY, data.username)
+    setUsername(data.username)
+    setHasToken(true)
+  }, [])
+
   const logout = useCallback(() => {
     tokenStorage.clear()
     localStorage.removeItem(USERNAME_KEY)
@@ -47,8 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<AuthState>(
-    () => ({ username, isAuthenticated: hasToken, login, logout }),
-    [username, hasToken, login, logout],
+    () => ({ username, isAuthenticated: hasToken, login, register, logout }),
+    [username, hasToken, login, register, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
