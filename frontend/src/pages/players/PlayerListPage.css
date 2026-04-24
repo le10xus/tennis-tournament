@@ -1,0 +1,8 @@
+.player-link {
+  color: var(--text-h);
+  text-decoration: none;
+}
+
+.player-link:hover {
+  color: var(--accent);
+}
