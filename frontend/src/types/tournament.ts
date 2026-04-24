@@ -21,6 +21,7 @@ export interface Tournament {
 export interface TournamentBrief {
   id: number
   name: string
+  kind: string
   status: string
   status_display: string
   gender_type: string

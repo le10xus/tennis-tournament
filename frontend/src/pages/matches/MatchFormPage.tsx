@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { matchesApi, playersApi, tournamentsApi } from '../../api'
 import { FormField } from '../../components/FormField'
-import type { MatchApiErrors, MatchFormData, Player, TournamentBrief } from '../../types'
+import type { MatchApiErrors, MatchFormData, Player, Tournament } from '../../types'
 import { playerName } from './matchUtils'
 
 const EMPTY: MatchFormData = {
   tournament: '',
   gender_type: 'male',
   player1: '',
+  pair1_player2: '',
   player2: '',
+  pair2_player2: '',
   winner: null,
   status: 'scheduled',
   round_number: 1,
@@ -30,7 +32,7 @@ export function MatchFormPage() {
   const [loading, setLoading] = useState(true)
 
   const [players, setPlayers] = useState<Player[]>([])
-  const [tournaments, setTournaments] = useState<TournamentBrief[]>([])
+  const [tournaments, setTournaments] = useState<Tournament[]>([])
 
   useEffect(() => {
     const loadRef = Promise.all([
@@ -44,7 +46,9 @@ export function MatchFormPage() {
           tournament: m.tournament,
           gender_type: m.gender_type,
           player1: m.player1,
+          pair1_player2: m.pair1_player2 ?? '',
           player2: m.player2,
+          pair2_player2: m.pair2_player2 ?? '',
           winner: m.winner,
           status: m.status,
           round_number: m.round_number,
@@ -63,7 +67,17 @@ export function MatchFormPage() {
   function set<K extends keyof MatchFormData>(field: K, value: MatchFormData[K]) {
     setForm(prev => {
       const next = { ...prev, [field]: value }
-      // сбросить winner если сменили игроков
+
+      // при смене турнира — сбросить игроков
+      if (field === 'tournament') {
+        next.player1 = ''
+        next.pair1_player2 = ''
+        next.player2 = ''
+        next.pair2_player2 = ''
+        next.winner = null
+      }
+
+      // сбросить winner если сменили игроков-капитанов
       if ((field === 'player1' || field === 'player2') && next.winner) {
         if (next.winner !== next.player1 && next.winner !== next.player2) {
           next.winner = null
@@ -74,10 +88,31 @@ export function MatchFormPage() {
     setErrors(prev => ({ ...prev, [field]: undefined }))
   }
 
+  const selectedTournament = tournaments.find(t => t.id === form.tournament)
+  const isDoubles = selectedTournament?.kind === 'doubles'
   const showResult = FINISHED_STATUSES.has(form.status)
+
+  // для winners: только капитаны (player1 и player2)
   const p1 = players.find(p => p.id === form.player1)
   const p2 = players.find(p => p.id === form.player2)
-  const participants = [p1, p2].filter(Boolean) as Player[]
+  const captains = [p1, p2].filter(Boolean) as Player[]
+
+  // все задействованные ID в форме
+  const usedIds = new Set(
+    [form.player1, form.pair1_player2, form.player2, form.pair2_player2].filter(Boolean)
+  )
+
+  function playerOptions(excludeExtra?: number | '') {
+    return players.map(p => (
+      <option
+        key={p.id}
+        value={p.id}
+        disabled={usedIds.has(p.id) && p.id !== excludeExtra}
+      >
+        {p.last_name} {p.first_name} ({p.rating})
+      </option>
+    ))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -86,6 +121,8 @@ export function MatchFormPage() {
     try {
       const payload = {
         ...form,
+        pair1_player2: (form.pair1_player2 || null) as unknown as number | '',
+        pair2_player2: (form.pair2_player2 || null) as unknown as number | '',
         scheduled_at: (form.scheduled_at || null) as unknown as string,
         score: form.score || '',
       }
@@ -119,7 +156,9 @@ export function MatchFormPage() {
           >
             <option value="">— выбрать —</option>
             {tournaments.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
+              <option key={t.id} value={t.id}>
+                {t.name} {t.kind === 'doubles' ? '(парный)' : ''}
+              </option>
             ))}
           </FormField>
 
@@ -161,47 +200,107 @@ export function MatchFormPage() {
           </FormField>
         </div>
 
-        <div className="form-row">
-          <FormField as="select" label="Игрок 1" required
-            value={String(form.player1)}
-            onChange={e => set('player1', Number(e.target.value) || '')}
-            error={errors.player1}
-          >
-            <option value="">— выбрать —</option>
-            {players.map(p => (
-              <option key={p.id} value={p.id} disabled={p.id === form.player2}>
-                {p.last_name} {p.first_name} ({p.rating})
-              </option>
-            ))}
-          </FormField>
+        {/* ── Одиночный: 2 игрока ────────────────────────────────────────── */}
+        {!isDoubles && (
+          <div className="form-row">
+            <FormField as="select" label="Игрок 1" required
+              value={String(form.player1)}
+              onChange={e => set('player1', Number(e.target.value) || '')}
+              error={errors.player1}
+            >
+              <option value="">— выбрать —</option>
+              {playerOptions(form.player1)}
+            </FormField>
 
-          <FormField as="select" label="Игрок 2" required
-            value={String(form.player2)}
-            onChange={e => set('player2', Number(e.target.value) || '')}
-            error={errors.player2}
-          >
-            <option value="">— выбрать —</option>
-            {players.map(p => (
-              <option key={p.id} value={p.id} disabled={p.id === form.player1}>
-                {p.last_name} {p.first_name} ({p.rating})
-              </option>
-            ))}
-          </FormField>
-        </div>
+            <FormField as="select" label="Игрок 2" required
+              value={String(form.player2)}
+              onChange={e => set('player2', Number(e.target.value) || '')}
+              error={errors.player2}
+            >
+              <option value="">— выбрать —</option>
+              {playerOptions(form.player2)}
+            </FormField>
+          </div>
+        )}
 
+        {/* ── Парный: 2 пары ─────────────────────────────────────────────── */}
+        {isDoubles && (
+          <>
+            <fieldset className="pair-fieldset">
+              <legend className="pair-legend">Пара 1</legend>
+              <div className="form-row">
+                <FormField as="select" label="Игрок 1" required
+                  value={String(form.player1)}
+                  onChange={e => set('player1', Number(e.target.value) || '')}
+                  error={errors.player1}
+                >
+                  <option value="">— выбрать —</option>
+                  {playerOptions(form.player1)}
+                </FormField>
+
+                <FormField as="select" label="Игрок 2" required
+                  value={String(form.pair1_player2)}
+                  onChange={e => set('pair1_player2', Number(e.target.value) || '')}
+                  error={errors.pair1_player2}
+                >
+                  <option value="">— выбрать —</option>
+                  {playerOptions(form.pair1_player2)}
+                </FormField>
+              </div>
+            </fieldset>
+
+            <fieldset className="pair-fieldset">
+              <legend className="pair-legend">Пара 2</legend>
+              <div className="form-row">
+                <FormField as="select" label="Игрок 1" required
+                  value={String(form.player2)}
+                  onChange={e => set('player2', Number(e.target.value) || '')}
+                  error={errors.player2}
+                >
+                  <option value="">— выбрать —</option>
+                  {playerOptions(form.player2)}
+                </FormField>
+
+                <FormField as="select" label="Игрок 2" required
+                  value={String(form.pair2_player2)}
+                  onChange={e => set('pair2_player2', Number(e.target.value) || '')}
+                  error={errors.pair2_player2}
+                >
+                  <option value="">— выбрать —</option>
+                  {playerOptions(form.pair2_player2)}
+                </FormField>
+              </div>
+            </fieldset>
+          </>
+        )}
+
+        {/* ── Результат ──────────────────────────────────────────────────── */}
         {showResult && (
           <div className="form-row">
-            <FormField as="select" label="Победитель"
+            <FormField as="select" label={isDoubles ? 'Победившая пара' : 'Победитель'}
               value={String(form.winner ?? '')}
               onChange={e => set('winner', Number(e.target.value) || null)}
               error={errors.winner}
             >
               <option value="">— не выбран —</option>
-              {participants.map(p => (
-                <option key={p.id} value={p.id}>
-                  {playerName(p)}
-                </option>
-              ))}
+              {isDoubles ? (
+                <>
+                  {p1 && (
+                    <option value={p1.id}>
+                      Пара 1: {playerName(p1)}{players.find(p => p.id === form.pair1_player2) ? ` / ${playerName(players.find(p => p.id === form.pair1_player2)!)}` : ''}
+                    </option>
+                  )}
+                  {p2 && (
+                    <option value={p2.id}>
+                      Пара 2: {playerName(p2)}{players.find(p => p.id === form.pair2_player2) ? ` / ${playerName(players.find(p => p.id === form.pair2_player2)!)}` : ''}
+                    </option>
+                  )}
+                </>
+              ) : (
+                captains.map(p => (
+                  <option key={p.id} value={p.id}>{playerName(p)}</option>
+                ))
+              )}
             </FormField>
 
             <FormField

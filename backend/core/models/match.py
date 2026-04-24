@@ -16,7 +16,15 @@ class Match(models.Model):
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="matches")
     gender_type = models.CharField(max_length=10, choices=GenderType.choices, default=GenderType.MALE)
     player1 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p1")
+    # для парных матчей: второй игрок первой пары
+    pair1_player2 = models.ForeignKey(
+        Player, on_delete=models.PROTECT, null=True, blank=True, related_name="matches_as_p1p2"
+    )
     player2 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p2")
+    # для парных матчей: второй игрок второй пары
+    pair2_player2 = models.ForeignKey(
+        Player, on_delete=models.PROTECT, null=True, blank=True, related_name="matches_as_p2p2"
+    )
     winner = models.ForeignKey(
         Player, on_delete=models.SET_NULL, null=True, blank=True, related_name="won_matches"
     )
@@ -27,10 +35,16 @@ class Match(models.Model):
 
     def clean(self):
         errors = {}
-        if self.player1_id and self.player2_id and self.player1_id == self.player2_id:
-            errors["player2"] = "Игрок не может играть сам с собой."
+        all_ids = [
+            i for i in (
+                self.player1_id, self.pair1_player2_id,
+                self.player2_id, self.pair2_player2_id,
+            ) if i
+        ]
+        if len(all_ids) != len(set(all_ids)):
+            errors["pair1_player2"] = "Один игрок не может участвовать в матче дважды."
         if self.winner_id and self.winner_id not in (self.player1_id, self.player2_id):
-            errors["winner"] = "Победитель должен быть одним из участников матча."
+            errors["winner"] = "Победитель должен быть капитаном одной из сторон."
         if errors:
             raise ValidationError(errors)
 
