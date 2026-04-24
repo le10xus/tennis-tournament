@@ -1,6 +1,8 @@
 export interface Tournament {
   id: number
   name: string
+  kind: string
+  kind_display: string
   gender_type: string
   gender_type_display: string
   format: string
@@ -27,6 +29,7 @@ export interface TournamentBrief {
 
 export interface TournamentFormData {
   name: string
+  kind: string
   gender_type: string
   format: string
   status: string

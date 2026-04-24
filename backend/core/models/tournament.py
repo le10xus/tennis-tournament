@@ -5,6 +5,10 @@ from .player import Player
 
 
 class Tournament(models.Model):
+    class Kind(models.TextChoices):
+        SINGLES = "singles", "Одиночный"
+        DOUBLES = "doubles", "Парный"
+
     class Format(models.TextChoices):
         ROUND_ROBIN = "round_robin", "Круговой"
         SINGLE_ELIM = "single_elim", "Олимпийская (с выбыванием)"
@@ -17,6 +21,7 @@ class Tournament(models.Model):
         FINISHED = "finished", "Завершён"
 
     name = models.CharField(max_length=200)
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.SINGLES)
     gender_type = models.CharField(max_length=10, choices=GenderType.choices, default=GenderType.MALE)
     format = models.CharField(max_length=20, choices=Format.choices, default=Format.ROUND_ROBIN)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)

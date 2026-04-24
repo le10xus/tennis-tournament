@@ -5,6 +5,7 @@ from .player import PlayerSerializer
 
 
 class TournamentSerializer(serializers.ModelSerializer):
+    kind_display = serializers.CharField(source="get_kind_display", read_only=True)
     gender_type_display = serializers.CharField(source="get_gender_type_display", read_only=True)
     format_display = serializers.CharField(source="get_format_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -14,6 +15,7 @@ class TournamentSerializer(serializers.ModelSerializer):
         model = Tournament
         fields = [
             "id", "name",
+            "kind", "kind_display",
             "gender_type", "gender_type_display",
             "format", "format_display",
             "status", "status_display",

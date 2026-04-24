@@ -113,6 +113,7 @@ export function TournamentListPage() {
               <tr>
                 <th>Название</th>
                 <th>Статус</th>
+                <th>Разряд</th>
                 <th>Формат</th>
                 <th>Категория</th>
                 <th>Дата начала</th>
@@ -134,6 +135,7 @@ export function TournamentListPage() {
                       {t.status_display}
                     </span>
                   </td>
+                  <td>{t.kind_display}</td>
                   <td className="col-secondary">{t.format_display}</td>
                   <td>{t.gender_type_display}</td>
                   <td className="col-secondary">{t.start_date}</td>

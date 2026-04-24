@@ -9,6 +9,7 @@ const today = new Date().toISOString().slice(0, 10)
 
 const EMPTY: TournamentFormData = {
   name: '',
+  kind: 'singles',
   gender_type: 'male',
   format: 'round_robin',
   status: 'draft',
@@ -34,6 +35,7 @@ export function TournamentFormPage() {
     tournamentsApi.get(Number(id))
       .then(t => setForm({
         name: t.name,
+        kind: t.kind,
         gender_type: t.gender_type,
         format: t.format,
         status: t.status,
@@ -91,6 +93,15 @@ export function TournamentFormPage() {
         />
 
         <div className="form-row">
+          <FormField as="select" label="Разряд" required
+            value={form.kind}
+            onChange={e => set('kind', e.target.value)}
+            error={errors.kind}
+          >
+            <option value="singles">Одиночный</option>
+            <option value="doubles">Парный</option>
+          </FormField>
+
           <FormField as="select" label="Категория" required
             value={form.gender_type}
             onChange={e => set('gender_type', e.target.value)}
