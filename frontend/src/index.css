@@ -144,6 +144,11 @@ code {
   background: var(--code-bg);
 }
 
+.btn-sm {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+}
+
 .btn-danger-ghost {
   background: transparent;
   color: #e53e3e;

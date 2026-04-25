@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { PlayerListPage } from './pages/players/PlayerListPage'
+import { PlayerPage } from './pages/players/PlayerPage'
 import { PlayerFormPage } from './pages/players/PlayerFormPage'
 import { MatchListPage } from './pages/matches/MatchListPage'
 import { MatchFormPage } from './pages/matches/MatchFormPage'
@@ -28,6 +29,7 @@ export default function App() {
 
               <Route path="players">
                 <Route index element={<PlayerListPage />} />
+                <Route path=":id" element={<PlayerPage />} />
                 {/* Создание и редактирование — только organizer + admin */}
                 <Route element={<RequireEdit />}>
                   <Route path="new" element={<PlayerFormPage />} />

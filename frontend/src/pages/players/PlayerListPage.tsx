@@ -71,7 +71,7 @@ export function PlayerListPage() {
               {players.map(p => (
                 <tr key={p.id}>
                   <td className="col-name">
-                    <Link to={`/players/${p.id}/edit`} className="player-link">
+                    <Link to={`/players/${p.id}`} className="player-link">
                       {p.first_name} {p.last_name}
                     </Link>
                   </td>
@@ -80,6 +80,11 @@ export function PlayerListPage() {
                   <td className="col-num">{p.rating}</td>
                   <td>{p.rating_type_display}</td>
                   <td className="col-actions">
+                    {canEdit && (
+                      <Link to={`/players/${p.id}/edit`} className="btn btn-ghost btn-sm">
+                        Редактировать
+                      </Link>
+                    )}
                     {canDelete && (
                       <button
                         className="btn btn-danger-ghost"

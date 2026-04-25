@@ -33,10 +33,28 @@ class TournamentSerializer(serializers.ModelSerializer):
         return data
 
 
+class TournamentNestedSerializer(serializers.ModelSerializer):
+    """Краткое представление турнира для вложенных сериализаторов (без players_count)."""
+    kind_display = serializers.CharField(source="get_kind_display", read_only=True)
+    format_display = serializers.CharField(source="get_format_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = Tournament
+        fields = [
+            "id", "name",
+            "kind", "kind_display",
+            "format", "format_display",
+            "status", "status_display",
+            "start_date", "end_date", "location",
+        ]
+
+
 class TournamentRegistrationSerializer(serializers.ModelSerializer):
     player_detail = PlayerSerializer(source="player", read_only=True)
+    tournament_detail = TournamentNestedSerializer(source="tournament", read_only=True)
 
     class Meta:
         model = TournamentRegistration
-        fields = ["id", "tournament", "player", "player_detail", "registered_at", "seed"]
+        fields = ["id", "tournament", "tournament_detail", "player", "player_detail", "registered_at", "seed"]
         read_only_fields = ["id", "registered_at"]
