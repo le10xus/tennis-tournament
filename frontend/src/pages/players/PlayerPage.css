@@ -52,6 +52,29 @@
   font-weight: 500;
 }
 
+/* ── Sections ── */
+.player-section {
+  margin-bottom: 2.5rem;
+}
+
+/* ── Match result ── */
+.result {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.result--win {
+  background: #f0fff4;
+  color: #276749;
+}
+
+.result--loss {
+  background: #fff5f5;
+  color: #c53030;
+}
+
 /* ── Tournaments section ── */
 .section-title {
   font-size: 1.1rem;

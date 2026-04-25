@@ -11,6 +11,7 @@ export interface PlayerBrief {
 export interface Match {
   id: number
   tournament: number
+  tournament_name: string
   gender_type: GenderType
   gender_type_display: string
   player1: number
