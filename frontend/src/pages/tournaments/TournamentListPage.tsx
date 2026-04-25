@@ -128,7 +128,7 @@ export function TournamentListPage() {
               {tournaments.map(t => (
                 <tr key={t.id}>
                   <td className="col-name">
-                    <Link to={`/tournaments/${t.id}/edit`} className="tournament-link">
+                    <Link to={`/tournaments/${t.id}`} className="tournament-link">
                       {t.name}
                     </Link>
                   </td>
@@ -144,6 +144,11 @@ export function TournamentListPage() {
                   <td className="col-secondary">{t.location || '—'}</td>
                   <td className="col-num">{t.players_count} / {t.max_players}</td>
                   <td className="col-actions">
+                    {canEdit && (
+                      <Link to={`/tournaments/${t.id}/edit`} className="btn btn-ghost btn-sm">
+                        Редактировать
+                      </Link>
+                    )}
                     {canDelete && (
                       <button
                         className="btn btn-danger-ghost"

@@ -6,6 +6,7 @@ import { PlayerFormPage } from './pages/players/PlayerFormPage'
 import { MatchListPage } from './pages/matches/MatchListPage'
 import { MatchFormPage } from './pages/matches/MatchFormPage'
 import { TournamentListPage } from './pages/tournaments/TournamentListPage'
+import { TournamentPage } from './pages/tournaments/TournamentPage'
 import { TournamentFormPage } from './pages/tournaments/TournamentFormPage'
 import { UserListPage } from './pages/users/UserListPage'
 import { UserFormPage } from './pages/users/UserFormPage'
@@ -39,6 +40,7 @@ export default function App() {
 
               <Route path="tournaments">
                 <Route index element={<TournamentListPage />} />
+                <Route path=":id" element={<TournamentPage />} />
                 <Route element={<RequireEdit />}>
                   <Route path="new" element={<TournamentFormPage />} />
                   <Route path=":id/edit" element={<TournamentFormPage />} />

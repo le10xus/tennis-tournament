@@ -15,11 +15,21 @@ export interface TournamentNested {
   location: string
 }
 
+export interface PlayerInReg {
+  id: number
+  first_name: string
+  last_name: string
+  gender_display: string
+  rating: number
+  rating_type_display: string
+}
+
 export interface Registration {
   id: number
   tournament: number
   tournament_detail: TournamentNested
   player: number
+  player_detail: PlayerInReg
   registered_at: string
   seed: number | null
 }
@@ -27,4 +37,7 @@ export interface Registration {
 export const registrationsApi = {
   listForPlayer: (playerId: number) =>
     http.get<Paginated<Registration>>(`/registrations/?player=${playerId}&page_size=200`),
+
+  listForTournament: (tournamentId: number) =>
+    http.get<Paginated<Registration>>(`/registrations/?tournament=${tournamentId}&page_size=200`),
 }
