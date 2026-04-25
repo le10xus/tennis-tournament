@@ -11,6 +11,8 @@ import { UserFormPage } from './pages/users/UserFormPage'
 import { LoginPage } from './pages/auth/LoginPage'
 import { AuthProvider } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
+import { RequireEdit } from './auth/RequireEdit'
+import { RequireAdmin } from './auth/RequireAdmin'
 
 export default function App() {
   return (
@@ -19,33 +21,45 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
 
+          {/* Все маршруты требуют аутентификации */}
           <Route element={<RequireAuth />}>
             <Route element={<AppShell />}>
               <Route index element={<Navigate to="/players" replace />} />
 
               <Route path="players">
                 <Route index element={<PlayerListPage />} />
-                <Route path="new" element={<PlayerFormPage />} />
-                <Route path=":id/edit" element={<PlayerFormPage />} />
-              </Route>
-
-              <Route path="matches">
-                <Route index element={<MatchListPage />} />
-                <Route path="new" element={<MatchFormPage />} />
-                <Route path=":id/edit" element={<MatchFormPage />} />
+                {/* Создание и редактирование — только organizer + admin */}
+                <Route element={<RequireEdit />}>
+                  <Route path="new" element={<PlayerFormPage />} />
+                  <Route path=":id/edit" element={<PlayerFormPage />} />
+                </Route>
               </Route>
 
               <Route path="tournaments">
                 <Route index element={<TournamentListPage />} />
-                <Route path="new" element={<TournamentFormPage />} />
-                <Route path=":id/edit" element={<TournamentFormPage />} />
+                <Route element={<RequireEdit />}>
+                  <Route path="new" element={<TournamentFormPage />} />
+                  <Route path=":id/edit" element={<TournamentFormPage />} />
+                </Route>
               </Route>
 
-              <Route path="users">
-                <Route index element={<UserListPage />} />
-                <Route path="new" element={<UserFormPage />} />
-                <Route path=":id/edit" element={<UserFormPage />} />
+              <Route path="matches">
+                <Route index element={<MatchListPage />} />
+                <Route element={<RequireEdit />}>
+                  <Route path="new" element={<MatchFormPage />} />
+                  <Route path=":id/edit" element={<MatchFormPage />} />
+                </Route>
               </Route>
+
+              {/* Управление пользователями — только admin */}
+              <Route element={<RequireAdmin />}>
+                <Route path="users">
+                  <Route index element={<UserListPage />} />
+                  <Route path="new" element={<UserFormPage />} />
+                  <Route path=":id/edit" element={<UserFormPage />} />
+                </Route>
+              </Route>
+
             </Route>
           </Route>
         </Routes>
