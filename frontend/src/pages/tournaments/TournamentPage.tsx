@@ -65,11 +65,16 @@ export function TournamentPage() {
           <Link to="/tournaments" className="back-link">← Турниры</Link>
           <h1 className="page-title">{tournament.name}</h1>
         </div>
-        {canEdit && (
-          <Link to={`/tournaments/${tournament.id}/edit`} className="btn btn-primary">
-            Редактировать
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <Link to={`/tournaments/${tournament.id}/bracket`} className="btn btn-ghost">
+            Сетка
           </Link>
-        )}
+          {canEdit && (
+            <Link to={`/tournaments/${tournament.id}/edit`} className="btn btn-primary">
+              Редактировать
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* ── Инфо-карточка ── */}

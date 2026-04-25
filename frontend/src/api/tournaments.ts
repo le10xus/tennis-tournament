@@ -1,5 +1,5 @@
 import { http } from './http'
-import type { Paginated, Tournament, TournamentBrief, TournamentFormData } from '../types'
+import type { Match, Paginated, Tournament, TournamentBrief, TournamentFormData } from '../types'
 
 export const tournamentsApi = {
   list: (params?: Record<string, string>) => {
@@ -18,6 +18,9 @@ export const tournamentsApi = {
 
   delete: (id: number) =>
     http.delete(`/tournaments/${id}/`),
+
+  generateBracket: (id: number) =>
+    http.post<Match[]>(`/tournaments/${id}/generate_bracket/`, {}),
 }
 
 // Re-export TournamentBrief usage for backward compatibility

@@ -46,4 +46,7 @@ export const registrationsApi = {
 
   remove: (registrationId: number) =>
     http.delete(`/registrations/${registrationId}/`),
+
+  updateSeed: (registrationId: number, seed: number | null) =>
+    http.patch<Registration>(`/registrations/${registrationId}/`, { seed }),
 }

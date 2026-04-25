@@ -1,0 +1,190 @@
+.bracket-page {
+  max-width: 1200px;
+}
+
+.bracket-page__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+/* ── Sections ── */
+.bracket-section {
+  margin-bottom: 2.5rem;
+}
+
+.bracket-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* ── Seed input ── */
+.seed-table-wrap {
+  max-width: 480px;
+}
+
+.seed-input {
+  width: 64px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.seed-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Single-elim bracket ── */
+.bracket {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+
+.bracket__round {
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+}
+
+.bracket__round-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 0.75rem 0.5rem;
+  white-space: nowrap;
+}
+
+.bracket__slots {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.bracket__slot {
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  position: relative;
+}
+
+/* Connector lines between rounds */
+.bracket__slot::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 0.75rem;
+  height: 1px;
+  background: var(--border);
+}
+
+.bracket__round:last-child .bracket__slot::after {
+  display: none;
+}
+
+.bracket__match-card {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.bracket__match-card--tbd {
+  opacity: 0.45;
+}
+
+.bracket__player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.88rem;
+  min-height: 32px;
+}
+
+.bracket__player-row--winner {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
+}
+
+.bracket__player-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bracket__score {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #6b7280);
+  white-space: nowrap;
+}
+
+.bracket__tbd {
+  color: var(--text-secondary, #6b7280);
+  font-style: italic;
+  font-size: 0.82rem;
+}
+
+.bracket__divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Round-robin layout ── */
+.rr-layout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .rr-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rr-standings {
+  min-width: 280px;
+}
+
+.rr-standings__title,
+.rr-round__title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.rr-rounds {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.rr-round__matches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rr-round .bracket__match-card {
+  width: 190px;
+}
