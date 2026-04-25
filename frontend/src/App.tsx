@@ -6,6 +6,8 @@ import { MatchListPage } from './pages/matches/MatchListPage'
 import { MatchFormPage } from './pages/matches/MatchFormPage'
 import { TournamentListPage } from './pages/tournaments/TournamentListPage'
 import { TournamentFormPage } from './pages/tournaments/TournamentFormPage'
+import { UserListPage } from './pages/users/UserListPage'
+import { UserFormPage } from './pages/users/UserFormPage'
 import { LoginPage } from './pages/auth/LoginPage'
 import { AuthProvider } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
@@ -37,6 +39,12 @@ export default function App() {
                 <Route index element={<TournamentListPage />} />
                 <Route path="new" element={<TournamentFormPage />} />
                 <Route path=":id/edit" element={<TournamentFormPage />} />
+              </Route>
+
+              <Route path="users">
+                <Route index element={<UserListPage />} />
+                <Route path="new" element={<UserFormPage />} />
+                <Route path=":id/edit" element={<UserFormPage />} />
               </Route>
             </Route>
           </Route>

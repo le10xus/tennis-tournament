@@ -3,11 +3,9 @@ from django.db import models
 
 
 class User(AbstractUser):
-    """
-    Кастомная модель пользователя.
-    Каждый пользователь сайта = игрок: при создании User автоматически
-    создаётся связанный Player (через post_save сигнал в core/signals.py).
-    """
+    class Role(models.TextChoices):
+        PLAYER = "player", "Игрок"
+        ORGANIZER = "organizer", "Организатор"
 
     player = models.OneToOneField(
         "core.Player",
@@ -16,6 +14,7 @@ class User(AbstractUser):
         blank=True,
         related_name="user",
     )
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.PLAYER)
 
     class Meta:
         verbose_name = "Пользователь"

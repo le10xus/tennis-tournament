@@ -1,10 +1,12 @@
 from rest_framework.viewsets import ModelViewSet
 
 from core.models import Match
+from core.permissions import RolePermission
 from core.serializers import MatchSerializer
 
 
 class MatchViewSet(ModelViewSet):
+    permission_classes = [RolePermission]
     serializer_class = MatchSerializer
     queryset = Match.objects.none()
 

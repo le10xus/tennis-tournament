@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { matchesApi, tournamentsApi } from '../../api'
+import { useAuth } from '../../auth/AuthContext'
 import type { Match, TournamentBrief } from '../../types'
 import { statusBadge, playerName } from './matchUtils'
 
 export function MatchListPage() {
+  const { canEdit, canDelete } = useAuth()
   const [matches, setMatches] = useState<Match[]>([])
   const [tournaments, setTournaments] = useState<TournamentBrief[]>([])
   const [total, setTotal] = useState(0)
@@ -55,7 +57,7 @@ export function MatchListPage() {
           <h1 className="page-title">Матчи</h1>
           {!loading && <p className="page-subtitle">Всего: {total}</p>}
         </div>
-        <Link to="/matches/new" className="btn btn-primary">+ Добавить матч</Link>
+        {canEdit && <Link to="/matches/new" className="btn btn-primary">+ Добавить матч</Link>}
       </div>
 
       <div className="filters">
@@ -89,7 +91,7 @@ export function MatchListPage() {
       {!loading && !error && matches.length === 0 && (
         <div className="empty-state">
           <p>Матчей пока нет.</p>
-          <Link to="/matches/new" className="btn btn-primary">Добавить первый</Link>
+          {canEdit && <Link to="/matches/new" className="btn btn-primary">Добавить первый</Link>}
         </div>
       )}
 
@@ -131,13 +133,15 @@ export function MatchListPage() {
                       : '—'}
                   </td>
                   <td className="col-actions">
-                    <button
-                      className="btn btn-danger-ghost"
-                      onClick={() => handleDelete(m)}
-                      disabled={deletingId === m.id}
-                    >
-                      {deletingId === m.id ? '…' : 'Удалить'}
-                    </button>
+                    {canDelete && (
+                      <button
+                        className="btn btn-danger-ghost"
+                        onClick={() => handleDelete(m)}
+                        disabled={deletingId === m.id}
+                      >
+                        {deletingId === m.id ? '…' : 'Удалить'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { tournamentsApi } from '../../api'
+import { useAuth } from '../../auth/AuthContext'
 import type { Tournament } from '../../types'
 import './TournamentListPage.css'
 
@@ -27,6 +28,7 @@ const STATUS_BADGE: Record<string, string> = {
 }
 
 export function TournamentListPage() {
+  const { canEdit, canDelete } = useAuth()
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -76,7 +78,7 @@ export function TournamentListPage() {
           <h1 className="page-title">Турниры</h1>
           {!loading && <p className="page-subtitle">Всего: {total}</p>}
         </div>
-        <Link to="/tournaments/new" className="btn btn-primary">+ Создать турнир</Link>
+        {canEdit && <Link to="/tournaments/new" className="btn btn-primary">+ Создать турнир</Link>}
       </div>
 
       <div className="filters">
@@ -142,13 +144,15 @@ export function TournamentListPage() {
                   <td className="col-secondary">{t.location || '—'}</td>
                   <td className="col-num">{t.players_count} / {t.max_players}</td>
                   <td className="col-actions">
-                    <button
-                      className="btn btn-danger-ghost"
-                      onClick={() => handleDelete(t)}
-                      disabled={deletingId === t.id}
-                    >
-                      {deletingId === t.id ? '…' : 'Удалить'}
-                    </button>
+                    {canDelete && (
+                      <button
+                        className="btn btn-danger-ghost"
+                        onClick={() => handleDelete(t)}
+                        disabled={deletingId === t.id}
+                      >
+                        {deletingId === t.id ? '…' : 'Удалить'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

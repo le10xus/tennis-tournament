@@ -1,10 +1,12 @@
 from rest_framework.viewsets import ModelViewSet
 
 from core.models import Player
+from core.permissions import RolePermission
 from core.serializers import PlayerSerializer
 
 
 class PlayerViewSet(ModelViewSet):
+    permission_classes = [RolePermission]
     serializer_class = PlayerSerializer
     queryset = Player.objects.none()
 

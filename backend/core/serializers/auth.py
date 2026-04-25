@@ -1,8 +1,27 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Добавляет role и is_staff в JWT-клеймы и тело ответа."""
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token["role"] = user.role
+        token["is_staff"] = user.is_staff
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data["role"] = self.user.role
+        data["is_staff"] = self.user.is_staff
+        data["username"] = self.user.username
+        return data
 
 
 class RegisterSerializer(serializers.ModelSerializer):

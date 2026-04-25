@@ -95,10 +95,8 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
-    # Глобально AllowAny — существующие API остаются публичными.
-    # Отдельные вью могут переопределить на IsAuthenticated.
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "core.permissions.RolePermission",
     ],
 }
 

@@ -1,4 +1,5 @@
 export { playersApi } from './players'
 export { matchesApi } from './matches'
 export { tournamentsApi } from './tournaments'
+export { usersApi } from './users'
 export { http } from './http'

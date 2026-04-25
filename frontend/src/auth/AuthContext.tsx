@@ -2,6 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { http, tokenStorage } from '../api/http'
 
 const USERNAME_KEY = 'auth.username'
+const ROLE_KEY = 'auth.role'
+const IS_STAFF_KEY = 'auth.is_staff'
+
+export type UserRole = 'player' | 'organizer'
 
 export interface RegisterPayload {
   username: string
@@ -13,7 +17,11 @@ export interface RegisterPayload {
 
 interface AuthState {
   username: string | null
+  role: UserRole | null
+  isStaff: boolean
   isAuthenticated: boolean
+  canEdit: boolean   // organizer или admin
+  canDelete: boolean // только admin
   login: (username: string, password: string) => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
   logout: () => void
@@ -21,51 +29,83 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
 
-interface TokenResponse {
+interface AuthResponse {
   access: string
   refresh: string
+  username: string
+  role: UserRole
+  is_staff: boolean
+}
+
+function saveSession(data: AuthResponse) {
+  tokenStorage.set(data.access, data.refresh)
+  localStorage.setItem(USERNAME_KEY, data.username)
+  localStorage.setItem(ROLE_KEY, data.role)
+  localStorage.setItem(IS_STAFF_KEY, String(data.is_staff))
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(() => localStorage.getItem(USERNAME_KEY))
+  const [role, setRole] = useState<UserRole | null>(() => localStorage.getItem(ROLE_KEY) as UserRole | null)
+  const [isStaff, setIsStaff] = useState<boolean>(() => localStorage.getItem(IS_STAFF_KEY) === 'true')
   const [hasToken, setHasToken] = useState<boolean>(() => !!tokenStorage.getAccess())
 
   useEffect(() => {
     const onLogout = () => {
       localStorage.removeItem(USERNAME_KEY)
+      localStorage.removeItem(ROLE_KEY)
+      localStorage.removeItem(IS_STAFF_KEY)
       setUsername(null)
+      setRole(null)
+      setIsStaff(false)
       setHasToken(false)
     }
     window.addEventListener('auth:logout', onLogout)
     return () => window.removeEventListener('auth:logout', onLogout)
   }, [])
 
-  const login = useCallback(async (u: string, p: string) => {
-    const data = await http.post<TokenResponse>('/auth/token/', { username: u, password: p })
-    tokenStorage.set(data.access, data.refresh)
-    localStorage.setItem(USERNAME_KEY, u)
-    setUsername(u)
+  const applySession = useCallback((data: AuthResponse) => {
+    saveSession(data)
+    setUsername(data.username)
+    setRole(data.role)
+    setIsStaff(data.is_staff)
     setHasToken(true)
   }, [])
 
+  const login = useCallback(async (u: string, p: string) => {
+    const data = await http.post<AuthResponse>('/auth/token/', { username: u, password: p })
+    applySession(data)
+  }, [applySession])
+
   const register = useCallback(async (payload: RegisterPayload) => {
-    const data = await http.post<TokenResponse & { username: string }>('/auth/register/', payload)
-    tokenStorage.set(data.access, data.refresh)
-    localStorage.setItem(USERNAME_KEY, data.username)
-    setUsername(data.username)
-    setHasToken(true)
-  }, [])
+    const data = await http.post<AuthResponse>('/auth/register/', payload)
+    applySession(data)
+  }, [applySession])
 
   const logout = useCallback(() => {
     tokenStorage.clear()
     localStorage.removeItem(USERNAME_KEY)
+    localStorage.removeItem(ROLE_KEY)
+    localStorage.removeItem(IS_STAFF_KEY)
     setUsername(null)
+    setRole(null)
+    setIsStaff(false)
     setHasToken(false)
   }, [])
 
   const value = useMemo<AuthState>(
-    () => ({ username, isAuthenticated: hasToken, login, register, logout }),
-    [username, hasToken, login, register, logout],
+    () => ({
+      username,
+      role,
+      isStaff,
+      isAuthenticated: hasToken,
+      canEdit: isStaff || role === 'organizer',
+      canDelete: isStaff,
+      login,
+      register,
+      logout,
+    }),
+    [username, role, isStaff, hasToken, login, register, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

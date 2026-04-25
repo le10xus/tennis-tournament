@@ -2,10 +2,12 @@ from django.db.models import Count
 from rest_framework.viewsets import ModelViewSet
 
 from core.models import Tournament, TournamentRegistration
+from core.permissions import RolePermission
 from core.serializers import TournamentSerializer, TournamentRegistrationSerializer
 
 
 class TournamentViewSet(ModelViewSet):
+    permission_classes = [RolePermission]
     serializer_class = TournamentSerializer
     queryset = Tournament.objects.none()
 
@@ -21,6 +23,7 @@ class TournamentViewSet(ModelViewSet):
 
 
 class TournamentRegistrationViewSet(ModelViewSet):
+    permission_classes = [RolePermission]
     serializer_class = TournamentRegistrationSerializer
     queryset = TournamentRegistration.objects.none()
 

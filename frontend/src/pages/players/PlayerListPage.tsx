@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { playersApi } from '../../api'
+import { useAuth } from '../../auth/AuthContext'
 import type { Player } from '../../types'
 import './PlayerListPage.css'
 
 export function PlayerListPage() {
+  const { canEdit, canDelete } = useAuth()
   const [players, setPlayers] = useState<Player[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -39,7 +41,7 @@ export function PlayerListPage() {
           <h1 className="page-title">Игроки</h1>
           {!loading && <p className="page-subtitle">Всего: {total}</p>}
         </div>
-        <Link to="/players/new" className="btn btn-primary">+ Добавить игрока</Link>
+        {canEdit && <Link to="/players/new" className="btn btn-primary">+ Добавить игрока</Link>}
       </div>
 
       {loading && <p className="state-msg">Загрузка…</p>}
@@ -78,13 +80,15 @@ export function PlayerListPage() {
                   <td className="col-num">{p.rating}</td>
                   <td>{p.rating_type_display}</td>
                   <td className="col-actions">
-                    <button
-                      className="btn btn-danger-ghost"
-                      onClick={() => handleDelete(p)}
-                      disabled={deletingId === p.id}
-                    >
-                      {deletingId === p.id ? '…' : 'Удалить'}
-                    </button>
+                    {canDelete && (
+                      <button
+                        className="btn btn-danger-ghost"
+                        onClick={() => handleDelete(p)}
+                        disabled={deletingId === p.id}
+                      >
+                        {deletingId === p.id ? '…' : 'Удалить'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

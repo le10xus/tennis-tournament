@@ -286,6 +286,16 @@ code {
   border-top: 1px solid var(--border);
 }
 
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-h);
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+
 .pair-fieldset {
   border: 1px solid var(--border);
   border-radius: 8px;

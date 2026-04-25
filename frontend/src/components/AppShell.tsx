@@ -3,13 +3,15 @@ import { useAuth } from '../auth/AuthContext'
 import './AppShell.css'
 
 export function AppShell() {
-  const { username, logout } = useAuth()
+  const { username, role, isStaff, logout } = useAuth()
   const navigate = useNavigate()
 
   function onLogout() {
     logout()
     navigate('/login', { replace: true })
   }
+
+  const roleLabel = isStaff ? 'Администратор' : role === 'organizer' ? 'Организатор' : 'Игрок'
 
   return (
     <div className="shell">
@@ -25,9 +27,19 @@ export function AppShell() {
           <NavLink to="/matches" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
             Матчи
           </NavLink>
+          {isStaff && (
+            <NavLink to="/users" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+              Пользователи
+            </NavLink>
+          )}
         </div>
         <div className="nav-user">
-          {username && <span className="nav-username">{username}</span>}
+          {username && (
+            <span className="nav-username">
+              {username}
+              <span className="nav-role">{roleLabel}</span>
+            </span>
+          )}
           <button type="button" className="btn btn-ghost nav-logout" onClick={onLogout}>
             Выйти
           </button>
