@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { tournamentsApi } from '../../api'
+import { playersApi, tournamentsApi } from '../../api'
+import { registrationsApi } from '../../api/registrations'
 import { FormField } from '../../components/FormField'
-import type { TournamentApiErrors, TournamentFormData } from '../../types'
+import type { Player, TournamentApiErrors, TournamentFormData } from '../../types'
+import type { Registration } from '../../api/registrations'
 import './TournamentFormPage.css'
 
 const today = new Date().toISOString().slice(0, 10)
@@ -27,26 +29,48 @@ export function TournamentFormPage() {
 
   const [form, setForm] = useState<TournamentFormData>(EMPTY)
   const [errors, setErrors] = useState<TournamentApiErrors>({})
-  const [loading, setLoading] = useState(isEdit)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  // все игроки для выбора
+  const [allPlayers, setAllPlayers] = useState<Player[]>([])
+  // зарегистрированные (edit) или локально выбранные (create)
+  const [registrations, setRegistrations] = useState<Registration[]>([])
+  // локальные id для create-режима
+  const [pendingIds, setPendingIds] = useState<number[]>([])
+
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string>('')
+  const [addingPlayer, setAddingPlayer] = useState(false)
+  const [removingId, setRemovingId] = useState<number | null>(null)
+  const [playerError, setPlayerError] = useState<string | null>(null)
+
+  // id турнира после создания (нужен для регистраций)
+  const createdIdRef = useRef<number | null>(null)
+
   useEffect(() => {
-    if (!isEdit) return
-    tournamentsApi.get(Number(id))
-      .then(t => setForm({
-        name: t.name,
-        kind: t.kind,
-        gender_type: t.gender_type,
-        format: t.format,
-        status: t.status,
-        start_date: t.start_date,
-        end_date: t.end_date ?? '',
-        location: t.location,
-        description: t.description,
-        max_players: t.max_players,
-      }))
-      .catch(() => navigate('/tournaments'))
-      .finally(() => setLoading(false))
+    const loads: Promise<unknown>[] = [
+      playersApi.list({ page_size: '500' }).then(d => setAllPlayers(d.results)),
+    ]
+    if (isEdit) {
+      loads.push(
+        tournamentsApi.get(Number(id)).then(t => setForm({
+          name: t.name,
+          kind: t.kind,
+          gender_type: t.gender_type,
+          format: t.format,
+          status: t.status,
+          start_date: t.start_date,
+          end_date: t.end_date ?? '',
+          location: t.location,
+          description: t.description,
+          max_players: t.max_players,
+        }))
+        .catch(() => navigate('/tournaments')),
+        registrationsApi.listForTournament(Number(id))
+          .then(d => setRegistrations(d.results)),
+      )
+    }
+    Promise.all(loads).finally(() => setLoading(false))
   }, [id, isEdit, navigate])
 
   function set<K extends keyof TournamentFormData>(field: K, value: TournamentFormData[K]) {
@@ -54,19 +78,85 @@ export function TournamentFormPage() {
     setErrors(prev => ({ ...prev, [field]: undefined }))
   }
 
+  // ── Добавление игрока ──────────────────────────────────────────────────
+  async function handleAddPlayer() {
+    const pid = Number(selectedPlayerId)
+    if (!pid) return
+    setPlayerError(null)
+    setAddingPlayer(true)
+    try {
+      if (isEdit) {
+        const reg = await registrationsApi.add(Number(id), pid)
+        setRegistrations(prev => [...prev, reg])
+      } else {
+        // в create-режиме просто запоминаем
+        setPendingIds(prev => [...prev, pid])
+        // создаём «виртуальную» регистрацию для отображения
+        const player = allPlayers.find(p => p.id === pid)!
+        setRegistrations(prev => [...prev, {
+          id: -pid, // временный id
+          tournament: -1,
+          tournament_detail: {} as Registration['tournament_detail'],
+          player: pid,
+          player_detail: {
+            id: player.id,
+            first_name: player.first_name,
+            last_name: player.last_name,
+            gender_display: player.gender_display,
+            rating: player.rating,
+            rating_type_display: player.rating_type_display,
+          },
+          registered_at: '',
+          seed: null,
+        }])
+      }
+      setSelectedPlayerId('')
+    } catch (err: unknown) {
+      const e = err as { data?: { non_field_errors?: string[]; player?: string[] } }
+      setPlayerError(
+        e.data?.non_field_errors?.[0]
+        ?? e.data?.player?.[0]
+        ?? 'Не удалось добавить игрока.'
+      )
+    } finally {
+      setAddingPlayer(false)
+    }
+  }
+
+  // ── Удаление игрока ────────────────────────────────────────────────────
+  async function handleRemovePlayer(reg: Registration) {
+    setRemovingId(reg.id)
+    try {
+      if (isEdit) {
+        await registrationsApi.remove(reg.id)
+      } else {
+        setPendingIds(prev => prev.filter(pid => pid !== reg.player))
+      }
+      setRegistrations(prev => prev.filter(r => r.id !== reg.id))
+    } catch {
+      alert('Не удалось удалить игрока из турнира.')
+    } finally {
+      setRemovingId(null)
+    }
+  }
+
+  // ── Сохранение формы ──────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     setErrors({})
     try {
-      // end_date — пустая строка в форме, null на сервере
       const payload = { ...form, end_date: (form.end_date || null) as unknown as string }
       if (isEdit) {
         await tournamentsApi.update(Number(id), payload)
+        navigate('/tournaments')
       } else {
-        await tournamentsApi.create(payload)
+        const created = await tournamentsApi.create(payload)
+        createdIdRef.current = created.id
+        // создаём регистрации для всех выбранных игроков
+        await Promise.all(pendingIds.map(pid => registrationsApi.add(created.id, pid)))
+        navigate(`/tournaments/${created.id}/edit`)
       }
-      navigate('/tournaments')
     } catch (err: unknown) {
       const apiErr = err as { data?: TournamentApiErrors }
       if (apiErr.data) setErrors(apiErr.data)
@@ -76,6 +166,9 @@ export function TournamentFormPage() {
   }
 
   if (loading) return <p className="state-msg">Загрузка…</p>
+
+  const registeredPlayerIds = new Set(registrations.map(r => r.player))
+  const availablePlayers = allPlayers.filter(p => !registeredPlayerIds.has(p.id))
 
   return (
     <div className="form-page">
@@ -189,6 +282,86 @@ export function TournamentFormPage() {
           </button>
         </div>
       </form>
+
+      {/* ── Участники (вне <form> чтобы кнопки не сабмитили форму) ── */}
+      <section className="players-section">
+        <div className="players-section__header">
+          <h2 className="section-title">
+            Участники
+            <span className="section-count">{registrations.length}</span>
+          </h2>
+        </div>
+
+        {/* Добавление игрока */}
+        <div className="add-player-row">
+          <select
+            className="filter-select add-player-select"
+            value={selectedPlayerId}
+            onChange={e => { setSelectedPlayerId(e.target.value); setPlayerError(null) }}
+          >
+            <option value="">— выбрать игрока —</option>
+            {availablePlayers.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.last_name} {p.first_name} (рейтинг: {p.rating})
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleAddPlayer}
+            disabled={!selectedPlayerId || addingPlayer}
+          >
+            {addingPlayer ? '…' : '+ Добавить'}
+          </button>
+        </div>
+        {playerError && <p className="form-error-global" style={{ marginTop: '0.5rem' }}>{playerError}</p>}
+
+        {/* Список участников */}
+        {registrations.length > 0 && (
+          <div className="table-wrap" style={{ marginTop: '1rem' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Игрок</th>
+                  <th>Пол</th>
+                  <th className="col-num">Рейтинг</th>
+                  <th>Тип рейтинга</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {registrations.map(reg => (
+                  <tr key={reg.id}>
+                    <td className="col-name">
+                      {reg.player_detail.last_name} {reg.player_detail.first_name}
+                    </td>
+                    <td>{reg.player_detail.gender_display}</td>
+                    <td className="col-num">{reg.player_detail.rating}</td>
+                    <td className="col-secondary">{reg.player_detail.rating_type_display}</td>
+                    <td className="col-actions">
+                      <button
+                        type="button"
+                        className="btn btn-danger-ghost"
+                        onClick={() => handleRemovePlayer(reg)}
+                        disabled={removingId === reg.id}
+                      >
+                        {removingId === reg.id ? '…' : 'Убрать'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {registrations.length === 0 && (
+          <p className="state-msg" style={{ marginTop: '0.75rem' }}>
+            Игроков пока нет. Выберите игрока выше.
+          </p>
+        )}
+      </section>
     </div>
   )
 }

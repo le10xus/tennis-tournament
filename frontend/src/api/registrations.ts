@@ -40,4 +40,10 @@ export const registrationsApi = {
 
   listForTournament: (tournamentId: number) =>
     http.get<Paginated<Registration>>(`/registrations/?tournament=${tournamentId}&page_size=200`),
+
+  add: (tournamentId: number, playerId: number) =>
+    http.post<Registration>('/registrations/', { tournament: tournamentId, player: playerId }),
+
+  remove: (registrationId: number) =>
+    http.delete(`/registrations/${registrationId}/`),
 }
