@@ -17,7 +17,7 @@ export function AppShell() {
 
         <div className="nav-links">
           <NavLink to="/players" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-            Игроки
+            Рейтинг
           </NavLink>
           <NavLink to="/tournaments" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
             Турниры

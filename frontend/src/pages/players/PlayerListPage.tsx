@@ -38,7 +38,7 @@ export function PlayerListPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Игроки</h1>
+          <h1 className="page-title">Рейтинг</h1>
           {!loading && <p className="page-subtitle">Всего: {total}</p>}
         </div>
         {canEdit && <Link to="/players/new" className="btn btn-primary">+ Добавить игрока</Link>}
@@ -59,6 +59,7 @@ export function PlayerListPage() {
           <table className="table">
             <thead>
               <tr>
+                <th className="col-num">#</th>
                 <th>Игрок</th>
                 <th>Email</th>
                 <th>Пол</th>
@@ -68,8 +69,9 @@ export function PlayerListPage() {
               </tr>
             </thead>
             <tbody>
-              {players.map(p => (
+              {players.map((p, i) => (
                 <tr key={p.id}>
+                  <td className="col-num col-secondary">{i + 1}</td>
                   <td className="col-name">
                     <Link to={`/players/${p.id}`} className="player-link">
                       {p.first_name} {p.last_name}
