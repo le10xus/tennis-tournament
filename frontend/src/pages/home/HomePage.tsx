@@ -43,8 +43,8 @@ export function HomePage() {
       playersApi.list({ gender: 'female', page_size: '10' }),
     ])
       .then(([male, female]) => {
-        setMalePlayers(male.results)
-        setFemalePlayers(female.results)
+        setMalePlayers(male.results.slice(0, 10))
+        setFemalePlayers(female.results.slice(0, 10))
       })
       .finally(() => setPlayersLoading(false))
   }, [])
