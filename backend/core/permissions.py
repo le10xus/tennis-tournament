@@ -3,19 +3,20 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 class RolePermission(BasePermission):
     """
-    is_staff  → полный CRUD
-    organizer → чтение + создание + редактирование (без DELETE)
+    аноним    → только чтение (GET/HEAD/OPTIONS)
     player    → только чтение
-    аноним    → 401
+    organizer → чтение + создание + редактирование (без DELETE)
+    is_staff  → полный CRUD
     """
     message = "У вас недостаточно прав для выполнения этого действия."
 
     def has_permission(self, request, view):
+        # Анонимный просмотр разрешён
+        if request.method in SAFE_METHODS:
+            return True
         if not request.user or not request.user.is_authenticated:
             return False
         if request.user.is_staff:
-            return True
-        if request.method in SAFE_METHODS:
             return True
         if request.method == "DELETE":
             return False

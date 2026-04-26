@@ -1,15 +1,12 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { AuthModal } from './AuthModal'
 import './AppShell.css'
 
 export function AppShell() {
-  const { username, role, isStaff, logout } = useAuth()
-  const navigate = useNavigate()
-
-  function onLogout() {
-    logout()
-    navigate('/login', { replace: true })
-  }
+  const { username, role, isStaff, isAuthenticated, logout } = useAuth()
+  const [showAuth, setShowAuth] = useState(false)
 
   const roleLabel = isStaff ? 'Администратор' : role === 'organizer' ? 'Организатор' : 'Игрок'
 
@@ -17,6 +14,7 @@ export function AppShell() {
     <div className="shell">
       <nav className="nav">
         <span className="nav-brand">🎾 Tennis Tournament</span>
+
         <div className="nav-links">
           <NavLink to="/players" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
             Игроки
@@ -33,21 +31,35 @@ export function AppShell() {
             </NavLink>
           )}
         </div>
+
         <div className="nav-user">
-          {username && (
-            <span className="nav-username">
-              {username}
-              <span className="nav-role">{roleLabel}</span>
-            </span>
+          {isAuthenticated ? (
+            <>
+              <span className="nav-username">
+                {username}
+                <span className="nav-role">{roleLabel}</span>
+              </span>
+              <button type="button" className="btn btn-ghost nav-logout" onClick={logout}>
+                Выйти
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary nav-logout"
+              onClick={() => setShowAuth(true)}
+            >
+              Войти
+            </button>
           )}
-          <button type="button" className="btn btn-ghost nav-logout" onClick={onLogout}>
-            Выйти
-          </button>
         </div>
       </nav>
+
       <main className="content">
         <Outlet />
       </main>
+
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </div>
   )
 }
