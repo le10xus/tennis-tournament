@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { tournamentsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { CATEGORIES, categoryLabel } from '../../utils/categories'
 import type { Tournament } from '../../types'
 import './TournamentListPage.css'
 
@@ -11,13 +12,6 @@ const STATUS_OPTIONS = [
   { value: 'registration', label: 'Регистрация' },
   { value: 'in_progress', label: 'Идёт' },
   { value: 'finished', label: 'Завершён' },
-]
-
-const GENDER_OPTIONS = [
-  { value: '', label: 'Все категории' },
-  { value: 'male', label: 'Мужской' },
-  { value: 'female', label: 'Женский' },
-  { value: 'mixed', label: 'Смешанный' },
 ]
 
 const STATUS_BADGE: Record<string, string> = {
@@ -35,26 +29,29 @@ export function TournamentListPage() {
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [filterStatus, setFilterStatus] = useState('')
-  const [filterGender, setFilterGender] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
 
-  function load(status: string, gender: string) {
+  function load(status: string, category: string) {
     setLoading(true)
     setError(null)
     const params: Record<string, string> = {}
     if (status) params.status = status
-    if (gender) params.gender_type = gender
+    if (category) {
+      const cat = CATEGORIES.find(c => c.value === category)
+      if (cat) { params.kind = cat.kind; params.gender_type = cat.gender }
+    }
     tournamentsApi.list(params)
       .then(data => { setTournaments(data.results); setTotal(data.count) })
       .catch(() => setError('Не удалось загрузить список турниров.'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load(filterStatus, filterGender) }, [])
+  useEffect(() => { load('', '') }, [])
 
-  function applyFilters(status: string, gender: string) {
+  function applyFilters(status: string, category: string) {
     setFilterStatus(status)
-    setFilterGender(gender)
-    load(status, gender)
+    setFilterCategory(category)
+    load(status, category)
   }
 
   async function handleDelete(t: Tournament) {
@@ -85,16 +82,17 @@ export function TournamentListPage() {
         <select
           className="filter-select"
           value={filterStatus}
-          onChange={e => applyFilters(e.target.value, filterGender)}
+          onChange={e => applyFilters(e.target.value, filterCategory)}
         >
           {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select
           className="filter-select"
-          value={filterGender}
+          value={filterCategory}
           onChange={e => applyFilters(filterStatus, e.target.value)}
         >
-          {GENDER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <option value="">Все категории</option>
+          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
       </div>
 
@@ -115,9 +113,8 @@ export function TournamentListPage() {
               <tr>
                 <th>Название</th>
                 <th>Статус</th>
-                <th>Разряд</th>
-                <th>Формат</th>
                 <th>Категория</th>
+                <th>Формат</th>
                 <th>Дата начала</th>
                 <th>Место</th>
                 <th className="col-num">Игроков</th>
@@ -137,9 +134,8 @@ export function TournamentListPage() {
                       {t.status_display}
                     </span>
                   </td>
-                  <td>{t.kind_display}</td>
+                  <td>{categoryLabel(t.kind, t.gender_type)}</td>
                   <td className="col-secondary">{t.format_display}</td>
-                  <td>{t.gender_type_display}</td>
                   <td className="col-secondary">{t.start_date}</td>
                   <td className="col-secondary">{t.location || '—'}</td>
                   <td className="col-num">{t.players_count} / {t.max_players}</td>

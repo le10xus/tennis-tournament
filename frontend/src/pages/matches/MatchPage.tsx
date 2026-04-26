@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { matchesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { categoryLabel } from '../../utils/categories'
 import { statusBadge } from './matchUtils'
 import type { Match } from '../../types'
 
@@ -82,7 +83,7 @@ export function MatchPage() {
           </InfoRow>
           {match.score && <InfoRow label="Счёт"><span>{match.score}</span></InfoRow>}
           {winnerLabel && <InfoRow label="Победитель"><span>{winnerLabel}</span></InfoRow>}
-          <InfoRow label="Категория"><span>{match.gender_type_display}</span></InfoRow>
+          <InfoRow label="Категория"><span>{categoryLabel(match.kind, match.gender_type)}</span></InfoRow>
           {match.scheduled_at && (
             <InfoRow label="Дата">
               <span>{new Date(match.scheduled_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span>

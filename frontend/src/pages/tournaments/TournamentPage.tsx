@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { matchesApi, registrationsApi, tournamentsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { categoryLabel } from '../../utils/categories'
 import { statusBadge } from '../matches/matchUtils'
 import type { Registration } from '../../api/registrations'
 import type { Match, Tournament } from '../../types'
@@ -85,9 +86,8 @@ export function TournamentPage() {
               {tournament.status_display}
             </span>
           </InfoRow>
-          <InfoRow label="Разряд"><span>{tournament.kind_display}</span></InfoRow>
+          <InfoRow label="Категория"><span>{categoryLabel(tournament.kind, tournament.gender_type)}</span></InfoRow>
           <InfoRow label="Формат"><span>{tournament.format_display}</span></InfoRow>
-          <InfoRow label="Категория"><span>{tournament.gender_type_display}</span></InfoRow>
           <InfoRow label="Начало"><span>{tournament.start_date}</span></InfoRow>
           {tournament.end_date && <InfoRow label="Окончание"><span>{tournament.end_date}</span></InfoRow>}
           {tournament.location && <InfoRow label="Место"><span>{tournament.location}</span></InfoRow>}

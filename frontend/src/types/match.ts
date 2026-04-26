@@ -12,6 +12,8 @@ export interface Match {
   id: number
   tournament: number
   tournament_name: string
+  kind: 'singles' | 'doubles'
+  kind_display: string
   gender_type: GenderType
   gender_type_display: string
   player1: number

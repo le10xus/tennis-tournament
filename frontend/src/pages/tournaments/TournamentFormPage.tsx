@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { playersApi, tournamentsApi } from '../../api'
 import { registrationsApi } from '../../api/registrations'
 import { FormField } from '../../components/FormField'
+import { CATEGORIES, categoryValue } from '../../utils/categories'
 import type { Player, TournamentApiErrors, TournamentFormData } from '../../types'
 import type { Registration } from '../../api/registrations'
 import './TournamentFormPage.css'
@@ -187,23 +188,17 @@ export function TournamentFormPage() {
         />
 
         <div className="form-row">
-          <FormField as="select" label="Разряд" required
-            value={form.kind}
-            onChange={e => set('kind', e.target.value)}
-            error={errors.kind}
-          >
-            <option value="singles">Одиночный</option>
-            <option value="doubles">Парный</option>
-          </FormField>
-
           <FormField as="select" label="Категория" required
-            value={form.gender_type}
-            onChange={e => set('gender_type', e.target.value)}
-            error={errors.gender_type}
+            value={categoryValue(form.kind, form.gender_type)}
+            onChange={e => {
+              const cat = CATEGORIES.find(c => c.value === e.target.value)
+              if (cat) { set('kind', cat.kind); set('gender_type', cat.gender) }
+            }}
+            error={errors.kind ?? errors.gender_type}
           >
-            <option value="male">Мужской</option>
-            <option value="female">Женский</option>
-            <option value="mixed">Смешанный</option>
+            {CATEGORIES.map(c => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
           </FormField>
 
           <FormField as="select" label="Формат" required

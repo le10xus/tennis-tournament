@@ -17,6 +17,7 @@ class MatchViewSet(ModelViewSet):
         )
         tournament_id = self.request.query_params.get("tournament")
         gender_type = self.request.query_params.get("gender_type")
+        kind_param = self.request.query_params.get("kind")
         status = self.request.query_params.get("status")
         player_id = self.request.query_params.get("player")
 
@@ -24,6 +25,10 @@ class MatchViewSet(ModelViewSet):
             qs = qs.filter(tournament_id=tournament_id)
         if gender_type:
             qs = qs.filter(gender_type=gender_type)
+        if kind_param == "singles":
+            qs = qs.filter(pair1_player2__isnull=True)
+        elif kind_param == "doubles":
+            qs = qs.filter(pair1_player2__isnull=False)
         if status:
             qs = qs.filter(status=status)
         if player_id:

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { matchesApi, playersApi, tournamentsApi } from '../../api'
 import { FormField } from '../../components/FormField'
+import { CATEGORIES } from '../../utils/categories'
 import type { MatchApiErrors, MatchFormData, Player, Tournament } from '../../types'
 import { playerName } from './matchUtils'
 
@@ -178,14 +179,14 @@ export function MatchFormPage() {
         </div>
 
         <div className="form-row">
-          <FormField as="select" label="Тип" required
+          <FormField as="select" label="Категория" required
             value={form.gender_type}
             onChange={e => set('gender_type', e.target.value as MatchFormData['gender_type'])}
             error={errors.gender_type}
           >
-            <option value="male">Мужской</option>
-            <option value="female">Женский</option>
-            <option value="mixed">Микст</option>
+            {CATEGORIES
+              .filter(c => !selectedTournament || c.kind === selectedTournament.kind)
+              .map(c => <option key={c.value} value={c.gender}>{c.label}</option>)}
           </FormField>
 
           <FormField as="select" label="Статус"

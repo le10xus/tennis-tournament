@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { matchesApi, tournamentsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { CATEGORIES, categoryLabel } from '../../utils/categories'
 import type { Match, TournamentBrief } from '../../types'
 import { statusBadge, playerName } from './matchUtils'
 
@@ -16,6 +17,7 @@ export function MatchListPage() {
 
   const [filterTournament, setFilterTournament] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
 
   useEffect(() => {
     tournamentsApi.list({ page_size: '200' })
@@ -28,12 +30,16 @@ export function MatchListPage() {
     const params: Record<string, string> = {}
     if (filterTournament) params.tournament = filterTournament
     if (filterStatus) params.status = filterStatus
+    if (filterCategory) {
+      const cat = CATEGORIES.find(c => c.value === filterCategory)
+      if (cat) { params.kind = cat.kind; params.gender_type = cat.gender }
+    }
 
     matchesApi.list(params)
       .then(d => { setMatches(d.results); setTotal(d.count) })
       .catch(() => setError('Не удалось загрузить матчи.'))
       .finally(() => setLoading(false))
-  }, [filterTournament, filterStatus])
+  }, [filterTournament, filterStatus, filterCategory])
 
   async function handleDelete(match: Match) {
     const label = `${playerName(match.player1_detail)} vs ${playerName(match.player2_detail)}`
@@ -83,6 +89,14 @@ export function MatchListPage() {
           <option value="finished">Завершён</option>
           <option value="walkover">Тех. поражение</option>
         </select>
+        <select
+          className="filter-select"
+          value={filterCategory}
+          onChange={e => setFilterCategory(e.target.value)}
+        >
+          <option value="">Все категории</option>
+          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
       </div>
 
       {loading && <p className="state-msg">Загрузка…</p>}
@@ -104,7 +118,7 @@ export function MatchListPage() {
                 <th>Матч</th>
                 <th>Победитель</th>
                 <th>Счёт</th>
-                <th>Тип</th>
+                <th>Категория</th>
                 <th>Статус</th>
                 <th>Дата</th>
                 <th></th>
@@ -121,7 +135,7 @@ export function MatchListPage() {
                   </td>
                   <td>{m.winner_detail ? playerName(m.winner_detail) : '—'}</td>
                   <td className="col-secondary">{m.score || '—'}</td>
-                  <td className="col-secondary">{m.gender_type_display}</td>
+                  <td className="col-secondary">{categoryLabel(m.kind, m.gender_type)}</td>
                   <td>
                     <span className={`badge ${statusBadge(m.status)}`}>
                       {m.status_display}

@@ -22,10 +22,13 @@ class TournamentViewSet(ModelViewSet):
         qs = Tournament.objects.annotate(players_count=Count("players"))
         status_param = self.request.query_params.get("status")
         gender_type = self.request.query_params.get("gender_type")
+        kind_param = self.request.query_params.get("kind")
         if status_param:
             qs = qs.filter(status=status_param)
         if gender_type:
             qs = qs.filter(gender_type=gender_type)
+        if kind_param:
+            qs = qs.filter(kind=kind_param)
         return qs
 
     @action(detail=True, methods=["post"], url_path="generate_bracket")

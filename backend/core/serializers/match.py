@@ -13,6 +13,14 @@ class MatchSerializer(serializers.ModelSerializer):
     tournament_name = serializers.CharField(source="tournament.name", read_only=True)
     gender_type_display = serializers.CharField(source="get_gender_type_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    kind = serializers.SerializerMethodField()
+    kind_display = serializers.SerializerMethodField()
+
+    def get_kind(self, obj):
+        return "doubles" if obj.pair1_player2_id else "singles"
+
+    def get_kind_display(self, obj):
+        return "Парный" if obj.pair1_player2_id else "Одиночный"
     player1_detail = PlayerBriefSerializer(source="player1", read_only=True)
     pair1_player2_detail = PlayerBriefSerializer(source="pair1_player2", read_only=True)
     player2_detail = PlayerBriefSerializer(source="player2", read_only=True)
@@ -23,6 +31,7 @@ class MatchSerializer(serializers.ModelSerializer):
         model = Match
         fields = [
             "id", "tournament", "tournament_name",
+            "kind", "kind_display",
             "gender_type", "gender_type_display",
             "player1", "player1_detail",
             "pair1_player2", "pair1_player2_detail",
