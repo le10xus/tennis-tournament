@@ -1,5 +1,6 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
+import { HomePage } from './pages/home/HomePage'
 import { PlayerListPage } from './pages/players/PlayerListPage'
 import { PlayerPage } from './pages/players/PlayerPage'
 import { PlayerFormPage } from './pages/players/PlayerFormPage'
@@ -22,7 +23,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route element={<AppShell />}>
-            <Route index element={<Navigate to="/players" replace />} />
+            <Route index element={<HomePage />} />
 
             <Route path="players">
               <Route index element={<PlayerListPage />} />

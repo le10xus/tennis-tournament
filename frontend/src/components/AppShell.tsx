@@ -16,6 +16,9 @@ export function AppShell() {
         <span className="nav-brand">🎾 Tennis Tournament</span>
 
         <div className="nav-links">
+          <NavLink to="/" end className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+            Главное
+          </NavLink>
           <NavLink to="/players" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
             Рейтинг
           </NavLink>
