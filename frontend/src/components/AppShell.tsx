@@ -22,9 +22,6 @@ export function AppShell() {
           <NavLink to="/tournaments" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
             Турниры
           </NavLink>
-          <NavLink to="/matches" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-            Матчи
-          </NavLink>
           {isStaff && (
             <NavLink to="/users" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
               Пользователи

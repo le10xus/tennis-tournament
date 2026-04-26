@@ -340,3 +340,61 @@ code {
   outline: none;
   border-color: var(--accent);
 }
+
+/* ── Match detail page ── */
+.match-versus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0 1rem;
+}
+
+.match-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 1;
+  text-align: center;
+}
+
+.match-side--winner .match-side__name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.match-side__name {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--text-h);
+  text-decoration: none;
+}
+
+.match-side__name:hover {
+  color: var(--accent);
+}
+
+.match-side__partner {
+  font-size: 1rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.match-side__partner:hover {
+  color: var(--accent);
+}
+
+.match-side__crown {
+  font-size: 1.1rem;
+  margin-top: 0.15rem;
+}
+
+.match-vs {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}

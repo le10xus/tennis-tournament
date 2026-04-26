@@ -152,9 +152,15 @@ export function TournamentPage() {
 
                   return (
                     <tr key={m.id}>
-                      <td className="col-num col-center col-secondary">R{m.round_number}</td>
-                      <td className="col-name">{side1}</td>
-                      <td className="col-name">{side2}</td>
+                      <td className="col-num col-center col-secondary">
+                        <Link to={`/matches/${m.id}`} className="player-ref-link">R{m.round_number}</Link>
+                      </td>
+                      <td className="col-name">
+                        <Link to={`/matches/${m.id}`} className="player-ref-link">{side1}</Link>
+                      </td>
+                      <td className="col-name">
+                        <Link to={`/matches/${m.id}`} className="player-ref-link">{side2}</Link>
+                      </td>
                       <td>{winnerLabel}</td>
                       <td className="col-secondary">{m.score || '—'}</td>
                       <td>
