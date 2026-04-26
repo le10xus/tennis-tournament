@@ -45,6 +45,7 @@ class TournamentRegistration(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
     registered_at = models.DateTimeField(auto_now_add=True)
     seed = models.PositiveSmallIntegerField(null=True, blank=True)
+    pair_id = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Номер пары (для парных турниров)")
 
     def __str__(self):
         return f"{self.player} @ {self.tournament}"

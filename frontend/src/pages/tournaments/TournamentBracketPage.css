@@ -23,7 +23,18 @@
 
 /* ── Seed input ── */
 .seed-table-wrap {
-  max-width: 480px;
+  max-width: 560px;
+}
+
+.seed-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.pair-row-divider td {
+  border-top: 2px solid var(--border);
 }
 
 .seed-input {

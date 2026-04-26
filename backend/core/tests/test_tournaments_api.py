@@ -9,7 +9,7 @@ from core.models import Tournament, TournamentRegistration
 class TestTournamentsAPI:
     url = "/api/tournaments/"
 
-    def test_create_valid(self, api_client):
+    def test_create_valid(self, organizer_client):
         payload = {
             "name": "Кубок весны",
             "start_date": str(date.today()),
@@ -18,26 +18,24 @@ class TestTournamentsAPI:
             "format": "round_robin",
             "max_players": 16,
         }
-        response = api_client.post(self.url, payload, format="json")
+        response = organizer_client.post(self.url, payload, format="json")
         assert response.status_code == 201, response.content
         data = response.json()
         assert data["name"] == "Кубок весны"
         assert data["status"] == Tournament.Status.DRAFT
         assert data["format_display"] == "Круговой"
 
-    def test_create_end_before_start_fails(self, api_client):
+    def test_create_end_before_start_fails(self, organizer_client):
         payload = {
             "name": "Bad",
             "start_date": str(date.today() + timedelta(days=5)),
             "end_date": str(date.today()),
         }
-        response = api_client.post(self.url, payload, format="json")
+        response = organizer_client.post(self.url, payload, format="json")
         assert response.status_code == 400
         assert "end_date" in response.json()
 
-    def test_players_count_annotation(
-        self, api_client, tournament, player_factory
-    ):
+    def test_players_count_annotation(self, api_client, tournament, player_factory):
         TournamentRegistration.objects.create(
             tournament=tournament, player=player_factory()
         )
@@ -72,12 +70,20 @@ class TestTournamentsAPI:
         assert len(results) == 1
         assert results[0]["name"] == "Female Cup"
 
-    def test_status_transitions(self, api_client, tournament):
+    def test_status_transitions(self, organizer_client, tournament):
         for new_status in ["registration", "in_progress", "finished"]:
-            response = api_client.patch(
+            response = organizer_client.patch(
                 f"{self.url}{tournament.id}/",
                 {"status": new_status},
                 format="json",
             )
             assert response.status_code == 200
             assert response.json()["status"] == new_status
+
+    def test_anon_cannot_create(self, api_client):
+        response = api_client.post(
+            self.url,
+            {"name": "Hack Cup", "start_date": str(date.today())},
+            format="json",
+        )
+        assert response.status_code == 401

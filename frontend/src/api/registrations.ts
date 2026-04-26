@@ -32,6 +32,7 @@ export interface Registration {
   player_detail: PlayerInReg
   registered_at: string
   seed: number | null
+  pair_id: number | null
 }
 
 export const registrationsApi = {
@@ -49,4 +50,7 @@ export const registrationsApi = {
 
   updateSeed: (registrationId: number, seed: number | null) =>
     http.patch<Registration>(`/registrations/${registrationId}/`, { seed }),
+
+  update: (registrationId: number, data: Partial<{ seed: number | null; pair_id: number | null }>) =>
+    http.patch<Registration>(`/registrations/${registrationId}/`, data),
 }

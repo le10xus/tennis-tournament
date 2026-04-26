@@ -108,6 +108,7 @@ export function TournamentFormPage() {
           },
           registered_at: '',
           seed: null,
+          pair_id: null,
         }])
       }
       setSelectedPlayerId('')
