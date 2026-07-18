@@ -131,14 +131,17 @@ class TournamentViewSet(ModelViewSet):
         for i in range(0, bracket_size, 2):
             pair_a = pairs[positions[i] - 1] if positions[i] <= n else None
             pair_b = pairs[positions[i + 1] - 1] if positions[i + 1] <= n else None
-            if pair_a is None or pair_b is None:
+            if pair_a is None and pair_b is None:
                 continue
+            p1, p1p2 = (pair_a[0], pair_a[1]) if pair_a else (None, None)
+            p2, p2p2 = (pair_b[0], pair_b[1]) if pair_b else (None, None)
             matches.append(Match(
                 tournament=tournament,
                 gender_type=tournament.gender_type,
-                player1=pair_a[0], pair1_player2=pair_a[1],
-                player2=pair_b[0], pair2_player2=pair_b[1],
+                player1=p1, pair1_player2=p1p2,
+                player2=p2, pair2_player2=p2p2,
                 round_number=1,
+                slot_index=i // 2,
                 status="scheduled",
             ))
         return matches
@@ -177,13 +180,14 @@ class TournamentViewSet(ModelViewSet):
         for i in range(0, bracket_size, 2):
             player_a = players[positions[i] - 1] if positions[i] <= n else None
             player_b = players[positions[i + 1] - 1] if positions[i + 1] <= n else None
-            if player_a is None or player_b is None:
+            if player_a is None and player_b is None:
                 continue
             matches.append(Match(
                 tournament=tournament,
                 gender_type=tournament.gender_type,
                 player1=player_a, player2=player_b,
                 round_number=1,
+                slot_index=i // 2,
                 status="scheduled",
             ))
         return matches

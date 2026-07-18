@@ -46,9 +46,9 @@ export function MatchFormPage() {
         .then(([, m]) => setForm({
           tournament: m.tournament,
           gender_type: m.gender_type,
-          player1: m.player1,
+          player1: m.player1 ?? '',
           pair1_player2: m.pair1_player2 ?? '',
-          player2: m.player2,
+          player2: m.player2 ?? '',
           pair2_player2: m.pair2_player2 ?? '',
           winner: m.winner,
           status: m.status,
@@ -172,7 +172,7 @@ export function MatchFormPage() {
 
           <FormField
             label="Дата и время" type="datetime-local"
-            value={form.scheduled_at}
+            value={form.scheduled_at ?? ''}
             onChange={e => set('scheduled_at', e.target.value)}
             error={errors.scheduled_at}
           />

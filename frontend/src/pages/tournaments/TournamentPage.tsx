@@ -134,19 +134,19 @@ export function TournamentPage() {
               </thead>
               <tbody>
                 {matches.map(m => {
-                  const side1 = isDoubles && m.pair1_player2_detail
+                  const side1 = isDoubles && m.pair1_player2_detail && m.player1_detail
                     ? `${m.player1_detail.last_name} / ${m.pair1_player2_detail.last_name}`
-                    : m.player1_detail.last_name
+                    : (m.player1_detail?.last_name ?? 'TBD')
 
-                  const side2 = isDoubles && m.pair2_player2_detail
+                  const side2 = isDoubles && m.pair2_player2_detail && m.player2_detail
                     ? `${m.player2_detail.last_name} / ${m.pair2_player2_detail.last_name}`
-                    : m.player2_detail.last_name
+                    : (m.player2_detail?.last_name ?? 'TBD')
 
                   const winnerLabel = m.winner_detail
                     ? (isDoubles
                       ? (m.winner === m.player1
-                        ? `${m.player1_detail.last_name}${m.pair1_player2_detail ? ' / ' + m.pair1_player2_detail.last_name : ''}`
-                        : `${m.player2_detail.last_name}${m.pair2_player2_detail ? ' / ' + m.pair2_player2_detail.last_name : ''}`)
+                        ? `${m.player1_detail?.last_name ?? ''}${m.pair1_player2_detail ? ' / ' + m.pair1_player2_detail.last_name : ''}`
+                        : `${m.player2_detail?.last_name ?? ''}${m.pair2_player2_detail ? ' / ' + m.pair2_player2_detail.last_name : ''}`)
                       : m.winner_detail.last_name)
                     : '—'
 

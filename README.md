@@ -60,6 +60,41 @@ docker compose down       # данные БД сохраняются в volume p
 docker compose down -v    # полный сброс БД
 ```
 
+## Production в Amvera
+
+Проект собирается одним Docker-образом: Vite формирует React-статику, а
+Django обслуживает SPA и API через Gunicorn. PostgreSQL создается в Amvera
+как отдельный управляемый сервис.
+
+В настройках приложения задайте переменные:
+
+```text
+DJANGO_DEBUG=0
+DJANGO_SECRET_KEY=<случайная строка длиной не менее 50 символов>
+DJANGO_ALLOWED_HOSTS=<домен приложения без https://>
+POSTGRES_DB=<имя базы>
+POSTGRES_USER=<пользователь>
+POSTGRES_PASSWORD=<пароль>
+POSTGRES_HOST=<внутренний rw-домен PostgreSQL>
+POSTGRES_PORT=5432
+```
+
+`DJANGO_SECRET_KEY` и `POSTGRES_PASSWORD` следует хранить в секретах Amvera.
+Для принудительного HTTPS можно дополнительно задать:
+
+```text
+DJANGO_SECURE_SSL_REDIRECT=1
+DJANGO_SECURE_HSTS_SECONDS=31536000
+```
+
+HSTS включайте только после проверки HTTPS и домена. При каждом старте
+контейнер выполняет миграции и `collectstatic`, затем запускает Gunicorn на
+порту 8000. После первого деплоя создайте администратора через консоль:
+
+```bash
+python manage.py createsuperuser
+```
+
 ## Следующие шаги
 
 - Доменные модели: `Tournament`, `Player`, `Match`, `Bracket`, `Rating`.

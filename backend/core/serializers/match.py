@@ -21,10 +21,10 @@ class MatchSerializer(serializers.ModelSerializer):
 
     def get_kind_display(self, obj):
         return "Парный" if obj.pair1_player2_id else "Одиночный"
-    player1_detail = PlayerBriefSerializer(source="player1", read_only=True)
-    pair1_player2_detail = PlayerBriefSerializer(source="pair1_player2", read_only=True)
-    player2_detail = PlayerBriefSerializer(source="player2", read_only=True)
-    pair2_player2_detail = PlayerBriefSerializer(source="pair2_player2", read_only=True)
+    player1_detail = PlayerBriefSerializer(source="player1", read_only=True, allow_null=True)
+    pair1_player2_detail = PlayerBriefSerializer(source="pair1_player2", read_only=True, allow_null=True)
+    player2_detail = PlayerBriefSerializer(source="player2", read_only=True, allow_null=True)
+    pair2_player2_detail = PlayerBriefSerializer(source="pair2_player2", read_only=True, allow_null=True)
     winner_detail = PlayerBriefSerializer(source="winner", read_only=True)
 
     class Meta:
@@ -39,7 +39,7 @@ class MatchSerializer(serializers.ModelSerializer):
             "pair2_player2", "pair2_player2_detail",
             "winner", "winner_detail",
             "status", "status_display",
-            "round_number", "scheduled_at", "score",
+            "round_number", "slot_index", "scheduled_at", "score",
         ]
         read_only_fields = ["id"]
 
@@ -56,9 +56,11 @@ class MatchSerializer(serializers.ModelSerializer):
                 {"pair1_player2": "Один игрок не может участвовать в матче дважды."}
             )
 
-        if winner and p1 and p2 and winner not in (p1, p2):
-            raise serializers.ValidationError(
-                {"winner": "Победитель должен быть капитаном одной из сторон (player1 или player2)."}
-            )
+        if winner:
+            captains = [p for p in (p1, p2) if p]
+            if captains and winner not in captains:
+                raise serializers.ValidationError(
+                    {"winner": "Победитель должен быть капитаном одной из сторон (player1 или player2)."}
+                )
 
         return data

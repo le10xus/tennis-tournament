@@ -32,13 +32,13 @@ export function MatchPage() {
 
   const isDoubles = !!match.pair1_player2_detail || !!match.pair2_player2_detail
 
-  const side1 = isDoubles && match.pair1_player2_detail
+  const side1 = isDoubles && match.pair1_player2_detail && match.player1_detail
     ? `${match.player1_detail.last_name} / ${match.pair1_player2_detail.last_name}`
-    : match.player1_detail.last_name
+    : (match.player1_detail?.last_name ?? 'TBD')
 
-  const side2 = isDoubles && match.pair2_player2_detail
+  const side2 = isDoubles && match.pair2_player2_detail && match.player2_detail
     ? `${match.player2_detail.last_name} / ${match.pair2_player2_detail.last_name}`
-    : match.player2_detail.last_name
+    : (match.player2_detail?.last_name ?? 'TBD')
 
   const winnerLabel = match.winner_detail
     ? (match.winner === match.player1 ? side1 : side2)
@@ -66,14 +66,14 @@ export function MatchPage() {
             name={side1}
             playerId={match.player1}
             partner={match.pair1_player2 ? { id: match.pair1_player2, name: match.pair1_player2_detail!.last_name } : null}
-            isWinner={match.winner === match.player1}
+            isWinner={match.player1 !== null && match.winner === match.player1}
           />
           <span className="match-vs">vs</span>
           <PlayerSide
             name={side2}
             playerId={match.player2}
             partner={match.pair2_player2 ? { id: match.pair2_player2, name: match.pair2_player2_detail!.last_name } : null}
-            isWinner={match.winner === match.player2}
+            isWinner={match.player2 !== null && match.winner === match.player2}
           />
         </div>
 
@@ -104,10 +104,17 @@ function PlayerSide({
   name, playerId, partner, isWinner,
 }: {
   name: string
-  playerId: number
+  playerId: number | null
   partner: { id: number; name: string } | null
   isWinner: boolean
 }) {
+  if (playerId === null) {
+    return (
+      <div className={`match-side ${isWinner ? 'match-side--winner' : ''}`}>
+        <span className="match-side__name">{name}</span>
+      </div>
+    )
+  }
   return (
     <div className={`match-side ${isWinner ? 'match-side--winner' : ''}`}>
       <Link to={`/players/${playerId}`} className="match-side__name player-ref-link">

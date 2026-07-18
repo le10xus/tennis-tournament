@@ -15,12 +15,16 @@ class Match(models.Model):
 
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="matches")
     gender_type = models.CharField(max_length=10, choices=GenderType.choices, default=GenderType.MALE)
-    player1 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p1")
+    player1 = models.ForeignKey(
+        Player, on_delete=models.PROTECT, null=True, blank=True, related_name="matches_as_p1"
+    )
     # для парных матчей: второй игрок первой пары
     pair1_player2 = models.ForeignKey(
         Player, on_delete=models.PROTECT, null=True, blank=True, related_name="matches_as_p1p2"
     )
-    player2 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p2")
+    player2 = models.ForeignKey(
+        Player, on_delete=models.PROTECT, null=True, blank=True, related_name="matches_as_p2"
+    )
     # для парных матчей: второй игрок второй пары
     pair2_player2 = models.ForeignKey(
         Player, on_delete=models.PROTECT, null=True, blank=True, related_name="matches_as_p2p2"
@@ -30,6 +34,7 @@ class Match(models.Model):
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.SCHEDULED)
     round_number = models.PositiveSmallIntegerField(default=1)
+    slot_index = models.PositiveSmallIntegerField(default=0)
     scheduled_at = models.DateTimeField(null=True, blank=True)
     score = models.CharField(max_length=50, blank=True, help_text='Например: "6:4 7:5"')
 
@@ -43,14 +48,18 @@ class Match(models.Model):
         ]
         if len(all_ids) != len(set(all_ids)):
             errors["pair1_player2"] = "Один игрок не может участвовать в матче дважды."
-        if self.winner_id and self.winner_id not in (self.player1_id, self.player2_id):
-            errors["winner"] = "Победитель должен быть капитаном одной из сторон."
+        if self.winner_id:
+            captains = [i for i in (self.player1_id, self.player2_id) if i]
+            if captains and self.winner_id not in captains:
+                errors["winner"] = "Победитель должен быть капитаном одной из сторон."
         if errors:
             raise ValidationError(errors)
 
     def __str__(self):
-        return f"{self.player1} vs {self.player2} — {self.tournament.name} (R{self.round_number})"
+        p1 = self.player1 or "TBD"
+        p2 = self.player2 or "TBD"
+        return f"{p1} vs {p2} — {self.tournament.name} (R{self.round_number})"
 
     class Meta:
-        ordering = ["round_number", "scheduled_at"]
+        ordering = ["round_number", "slot_index", "scheduled_at"]
         verbose_name_plural = "matches"

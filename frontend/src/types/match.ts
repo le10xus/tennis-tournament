@@ -16,12 +16,12 @@ export interface Match {
   kind_display: string
   gender_type: GenderType
   gender_type_display: string
-  player1: number
-  player1_detail: PlayerBrief
+  player1: number | null
+  player1_detail: PlayerBrief | null
   pair1_player2: number | null
   pair1_player2_detail: PlayerBrief | null
-  player2: number
-  player2_detail: PlayerBrief
+  player2: number | null
+  player2_detail: PlayerBrief | null
   pair2_player2: number | null
   pair2_player2_detail: PlayerBrief | null
   winner: number | null
@@ -29,6 +29,7 @@ export interface Match {
   status: MatchStatus
   status_display: string
   round_number: number
+  slot_index: number
   scheduled_at: string | null
   score: string
 }
@@ -43,7 +44,8 @@ export interface MatchFormData {
   winner: number | null
   status: MatchStatus
   round_number: number
-  scheduled_at: string
+  slot_index?: number
+  scheduled_at: string | null
   score: string
 }
 

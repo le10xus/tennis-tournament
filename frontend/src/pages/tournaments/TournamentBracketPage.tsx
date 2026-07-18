@@ -1,10 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type DragEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { matchesApi, registrationsApi, tournamentsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import type { Registration } from '../../api/registrations'
-import type { Match, Tournament } from '../../types'
+import type { Match, Tournament, GenderType } from '../../types'
+import {
+  type BracketSlot,
+  type BracketTarget,
+  type EmptyBracketSlot,
+  isMatchEditable,
+  isSideEmpty,
+  matchAtSlot,
+  moveBracketSide,
+  reorderPairSeeds,
+  reorderSeedsByIndex,
+} from './bracketDnD'
 import './TournamentBracketPage.css'
+
+const SEED_DRAG_TYPE = 'application/x-seed-row'
+const BRACKET_DRAG_TYPE = 'application/x-bracket-slot'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Pair {
@@ -36,6 +50,10 @@ export function TournamentBracketPage() {
   const [savingSeeds, setSavingSeeds] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState<string | null>(null)
+  const [swappingBracket, setSwappingBracket] = useState(false)
+  const [bracketSwapError, setBracketSwapError] = useState<string | null>(null)
+  const [dragSeedIndex, setDragSeedIndex] = useState<number | null>(null)
+  const [dragPairIndex, setDragPairIndex] = useState<number | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -135,6 +153,40 @@ export function TournamentBracketPage() {
     }
   }
 
+  async function handleBracketMove(from: BracketSlot, to: BracketTarget) {
+    if (!tournament) return
+    setSwappingBracket(true)
+    setBracketSwapError(null)
+    try {
+      const updated = await moveBracketSide(matches, from, to, {
+        tournamentId: tournament.id,
+        genderType: tournament.gender_type as GenderType,
+      })
+      setMatches(updated)
+    } catch (err: unknown) {
+      const e = err as { data?: { non_field_errors?: string[]; detail?: string }; message?: string }
+      setBracketSwapError(
+        e.data?.non_field_errors?.[0]
+        ?? e.data?.detail
+        ?? (err instanceof Error ? err.message : 'Не удалось изменить сетку.')
+      )
+    } finally {
+      setSwappingBracket(false)
+    }
+  }
+
+  function handleSeedReorder(fromIndex: number, toIndex: number) {
+    const ordered = sortedRegs(registrations)
+    setSeeds(prev => ({ ...prev, ...reorderSeedsByIndex(ordered, fromIndex, toIndex) }))
+  }
+
+  function handlePairReorder(fromIndex: number, toIndex: number) {
+    const pairs = buildPairs(registrations)
+    const { pairSeeds: nextSeeds, pairIds: nextPairIds } = reorderPairSeeds(pairs, fromIndex, toIndex)
+    setPairSeeds(prev => ({ ...prev, ...nextSeeds }))
+    setPairIds(prev => ({ ...prev, ...nextPairIds }))
+  }
+
   if (loading) return <p className="state-msg">Загрузка…</p>
   if (error || !tournament) return (
     <div className="empty-state">
@@ -163,19 +215,29 @@ export function TournamentBracketPage() {
             {isDoubles ? 'Пары и посевы' : 'Посевы участников'}
           </h2>
 
+          <p className="seed-hint">
+            Перетащите строки, чтобы изменить порядок посева, или введите номера вручную.
+          </p>
+
           {isDoubles ? (
             <DoubleSeedingPanel
               registrations={registrations}
               pairSeeds={pairSeeds}
               pairIds={pairIds}
+              dragPairIndex={dragPairIndex}
               onSeedChange={(id, v) => setPairSeeds(prev => ({ ...prev, [id]: v }))}
               onPairChange={(id, v) => setPairIds(prev => ({ ...prev, [id]: v }))}
+              onPairReorder={handlePairReorder}
+              onDragPairIndexChange={setDragPairIndex}
             />
           ) : (
             <SingleSeedingPanel
               registrations={registrations}
               seeds={seeds}
+              dragSeedIndex={dragSeedIndex}
               onSeedChange={(id, v) => setSeeds(prev => ({ ...prev, [id]: v }))}
+              onSeedReorder={handleSeedReorder}
+              onDragSeedIndexChange={setDragSeedIndex}
             />
           )}
 
@@ -210,17 +272,31 @@ export function TournamentBracketPage() {
             Сетка
             <span className="section-count">{matches.length}</span>
           </h2>
+          {canEdit && (
+            <p className="seed-hint">
+              {swappingBracket
+                ? 'Сохранение изменений…'
+                : 'Перетащите участников между слотами, в том числе на свободные (TBD).'}
+            </p>
+          )}
+          {bracketSwapError && (
+            <p className="form-error-global" style={{ marginBottom: '0.75rem' }}>{bracketSwapError}</p>
+          )}
           {fmt === 'round_robin' ? (
             <RoundRobinView
               matches={matches}
               registrations={registrations}
               isDoubles={isDoubles}
+              editable={canEdit}
+              onMove={handleBracketMove}
             />
           ) : (
             <SingleElimView
               matches={matches}
               registrations={registrations}
               isDoubles={isDoubles}
+              editable={canEdit}
+              onMove={handleBracketMove}
             />
           )}
         </section>
@@ -239,12 +315,32 @@ export function TournamentBracketPage() {
 // ── Seeding panels ─────────────────────────────────────────────────────────────
 
 function SingleSeedingPanel({
-  registrations, seeds, onSeedChange,
+  registrations, seeds, dragSeedIndex, onSeedChange, onSeedReorder, onDragSeedIndexChange,
 }: {
   registrations: Registration[]
   seeds: Record<number, string>
+  dragSeedIndex: number | null
   onSeedChange: (id: number, v: string) => void
+  onSeedReorder: (fromIndex: number, toIndex: number) => void
+  onDragSeedIndexChange: (index: number | null) => void
 }) {
+  const ordered = sortedRegsForPanel(registrations)
+
+  function handleDragStart(e: DragEvent<HTMLTableRowElement>, index: number) {
+    e.dataTransfer.setData(SEED_DRAG_TYPE, String(index))
+    e.dataTransfer.effectAllowed = 'move'
+    onDragSeedIndexChange(index)
+  }
+
+  function handleDrop(e: DragEvent<HTMLTableRowElement>, toIndex: number) {
+    e.preventDefault()
+    const fromIndex = Number(e.dataTransfer.getData(SEED_DRAG_TYPE))
+    if (!Number.isNaN(fromIndex)) {
+      onSeedReorder(fromIndex, toIndex)
+    }
+    onDragSeedIndexChange(null)
+  }
+
   return (
     <div className="seed-table-wrap">
       <table className="table">
@@ -256,9 +352,21 @@ function SingleSeedingPanel({
           </tr>
         </thead>
         <tbody>
-          {registrations.map(reg => (
-            <tr key={reg.id}>
+          {ordered.map((reg, index) => (
+            <tr
+              key={reg.id}
+              className={[
+                'seed-row',
+                dragSeedIndex === index ? 'seed-row--dragging' : '',
+              ].filter(Boolean).join(' ')}
+              draggable
+              onDragStart={e => handleDragStart(e, index)}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => handleDrop(e, index)}
+              onDragEnd={() => onDragSeedIndexChange(null)}
+            >
               <td className="col-num">
+                <span className="seed-drag-handle" title="Перетащите для изменения порядка">⠿</span>
                 <input
                   type="number" className="seed-input" min={1} placeholder="—"
                   value={seeds[reg.id] ?? ''}
@@ -280,15 +388,35 @@ function SingleSeedingPanel({
 }
 
 function DoubleSeedingPanel({
-  registrations, pairSeeds, pairIds, onSeedChange, onPairChange,
+  registrations, pairSeeds, pairIds, dragPairIndex,
+  onSeedChange, onPairChange, onPairReorder, onDragPairIndexChange,
 }: {
   registrations: Registration[]
   pairSeeds: Record<number, string>
   pairIds: Record<number, string>
+  dragPairIndex: number | null
   onSeedChange: (id: number, v: string) => void
   onPairChange: (id: number, v: string) => void
+  onPairReorder: (fromIndex: number, toIndex: number) => void
+  onDragPairIndexChange: (index: number | null) => void
 }) {
-  // Group into pairs for visual display (sort by pair_id, then by name for ungrouped)
+  const pairs = buildPairs(registrations)
+
+  function handlePairDragStart(e: DragEvent<HTMLDivElement>, index: number) {
+    e.dataTransfer.setData(SEED_DRAG_TYPE, String(index))
+    e.dataTransfer.effectAllowed = 'move'
+    onDragPairIndexChange(index)
+  }
+
+  function handlePairDrop(e: DragEvent<HTMLDivElement>, toIndex: number) {
+    e.preventDefault()
+    const fromIndex = Number(e.dataTransfer.getData(SEED_DRAG_TYPE))
+    if (!Number.isNaN(fromIndex)) {
+      onPairReorder(fromIndex, toIndex)
+    }
+    onDragPairIndexChange(null)
+  }
+
   const sorted = [...registrations].sort((a, b) => {
     const pa = a.pair_id ?? 9999
     const pb = b.pair_id ?? 9999
@@ -302,6 +430,35 @@ function DoubleSeedingPanel({
         Укажите номер пары для каждого игрока (два игрока с одинаковым номером — одна пара).
         Посев — позиция пары в сетке.
       </p>
+
+      {pairs.length > 0 && (
+        <div className="pair-seed-list">
+          <div className="pair-seed-list__title">Порядок пар (drag &amp; drop)</div>
+          {pairs.map((pair, index) => (
+            <div
+              key={pair.pairId}
+              className={[
+                'pair-seed-row',
+                dragPairIndex === index ? 'pair-seed-row--dragging' : '',
+              ].filter(Boolean).join(' ')}
+              draggable
+              onDragStart={e => handlePairDragStart(e, index)}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => handlePairDrop(e, index)}
+              onDragEnd={() => onDragPairIndexChange(null)}
+            >
+              <span className="seed-drag-handle">⠿</span>
+              <span className="pair-seed-row__seed">{index + 1}</span>
+              <span className="pair-seed-row__names">
+                {pair.p1.player_detail.last_name} / {pair.p1.player_detail.first_name}
+                {' + '}
+                {pair.p2.player_detail.last_name} / {pair.p2.player_detail.first_name}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <table className="table">
         <thead>
           <tr>
@@ -352,11 +509,13 @@ function DoubleSeedingPanel({
 const SLOT_PX = 90
 
 function SingleElimView({
-  matches, registrations, isDoubles,
+  matches, registrations, isDoubles, editable, onMove,
 }: {
   matches: Match[]
   registrations: Registration[]
   isDoubles: boolean
+  editable: boolean
+  onMove: (from: BracketSlot, to: BracketTarget) => Promise<void>
 }) {
   const n = isDoubles
     ? buildPairs(registrations).length
@@ -380,24 +539,29 @@ function SingleElimView({
         const round = ri + 1
         const slotCount = bracketSize / Math.pow(2, round)
         const slotHeight = Math.pow(2, ri) * SLOT_PX
-        const roundMatches = matches.filter(m => m.round_number === round)
 
         return (
           <div key={round} className="bracket__round">
             <div className="bracket__round-title">{roundLabel(round)}</div>
             <div className="bracket__slots">
               {Array.from({ length: slotCount }, (_, si) => {
-                const match = roundMatches[si]
+                const match = matchAtSlot(matches, round, si)
                 return (
                   <div key={si} className="bracket__slot" style={{ height: slotHeight }}>
                     {match ? (
-                      <MatchCard match={match} isDoubles={isDoubles} />
+                      <MatchCard
+                        match={match}
+                        isDoubles={isDoubles}
+                        editable={editable && isMatchEditable(match)}
+                        onMove={onMove}
+                      />
                     ) : (
-                      <div className="bracket__match-card bracket__match-card--tbd">
-                        <div className="bracket__player-row bracket__tbd">TBD</div>
-                        <div className="bracket__divider" />
-                        <div className="bracket__player-row bracket__tbd">TBD</div>
-                      </div>
+                      <TbdMatchCard
+                        round={round}
+                        slotIndex={si}
+                        editable={editable}
+                        onMove={onMove}
+                      />
                     )}
                   </div>
                 )
@@ -413,11 +577,13 @@ function SingleElimView({
 // ── Round-robin ────────────────────────────────────────────────────────────────
 
 function RoundRobinView({
-  matches, registrations, isDoubles,
+  matches, registrations, isDoubles, editable, onMove,
 }: {
   matches: Match[]
   registrations: Registration[]
   isDoubles: boolean
+  editable: boolean
+  onMove: (from: BracketSlot, to: BracketTarget) => Promise<void>
 }) {
   type StandingRow = { id: string; label: string; wins: number; losses: number }
   const standing: Record<string, StandingRow> = {}
@@ -501,7 +667,15 @@ function RoundRobinView({
               <div className="rr-round__matches">
                 {matches
                   .filter(m => m.round_number === round)
-                  .map(m => <MatchCard key={m.id} match={m} isDoubles={isDoubles} />)}
+                  .map(m => (
+                    <MatchCard
+                      key={m.id}
+                      match={m}
+                      isDoubles={isDoubles}
+                      editable={editable && isMatchEditable(m)}
+                      onMove={onMove}
+                    />
+                  ))}
               </div>
             </div>
           ))}
@@ -515,15 +689,17 @@ function RoundRobinView({
 
 function pairLabel(match: Match, side: 1 | 2): string {
   if (side === 1) {
+    if (!match.player1_detail) return 'TBD'
     const p2 = match.pair1_player2_detail
     return p2
       ? `${match.player1_detail.last_name} / ${p2.last_name}`
-      : match.player1_detail.last_name
+      : `${match.player1_detail.last_name} ${match.player1_detail.first_name}`
   }
+  if (!match.player2_detail) return 'TBD'
   const p2 = match.pair2_player2_detail
   return p2
     ? `${match.player2_detail.last_name} / ${p2.last_name}`
-    : match.player2_detail.last_name
+    : `${match.player2_detail.last_name} ${match.player2_detail.first_name}`
 }
 
 function buildPairs(registrations: Registration[]): Pair[] {
@@ -548,23 +724,154 @@ function buildPairs(registrations: Registration[]): Pair[] {
     .sort((a, b) => (a.seed === null ? 1 : b.seed === null ? -1 : a.seed - b.seed))
 }
 
-function MatchCard({ match, isDoubles }: { match: Match; isDoubles: boolean }) {
-  const p1Win = match.winner === match.player1
-  const p2Win = match.winner === match.player2
-  const side1 = isDoubles ? pairLabel(match, 1) : match.player1_detail.last_name
-  const side2 = isDoubles ? pairLabel(match, 2) : match.player2_detail.last_name
+function sortedRegsForPanel(regs: Registration[]) {
+  return [...regs].sort((a, b) => {
+    if (a.seed === null) return 1
+    if (b.seed === null) return -1
+    return a.seed - b.seed
+  })
+}
+
+function sideLabel(match: Match, side: 1 | 2, isDoubles: boolean): string {
+  if (isSideEmpty(match, side)) return 'Свободно'
+  if (isDoubles) return pairLabel(match, side)
+  const detail = side === 1 ? match.player1_detail : match.player2_detail
+  return detail ? `${detail.last_name} ${detail.first_name}` : 'TBD'
+}
+
+function useBracketDropHandlers(
+  editable: boolean,
+  onMove: ((from: BracketSlot, to: BracketTarget) => Promise<void>) | undefined,
+  target: BracketTarget,
+) {
+  function handleDragOver(e: DragEvent<HTMLDivElement>) {
+    if (!editable || !onMove) return
+    e.preventDefault()
+    e.currentTarget.classList.add('bracket__player-row--drop-target')
+  }
+
+  function handleDragLeave(e: DragEvent<HTMLDivElement>) {
+    e.currentTarget.classList.remove('bracket__player-row--drop-target')
+  }
+
+  async function handleDrop(e: DragEvent<HTMLDivElement>) {
+    if (!editable || !onMove) return
+    e.preventDefault()
+    e.currentTarget.classList.remove('bracket__player-row--drop-target')
+    const raw = e.dataTransfer.getData(BRACKET_DRAG_TYPE)
+    if (!raw) return
+    const from = JSON.parse(raw) as BracketSlot
+    await onMove(from, target)
+  }
+
+  return { handleDragOver, handleDragLeave, handleDrop }
+}
+
+function TbdMatchCard({
+  round, slotIndex, editable, onMove,
+}: {
+  round: number
+  slotIndex: number
+  editable: boolean
+  onMove?: (from: BracketSlot, to: BracketTarget) => Promise<void>
+}) {
+  return (
+    <div className={`bracket__match-card bracket__match-card--tbd${editable ? ' bracket__match-card--editable' : ''}`}>
+      <EmptyBracketRow side={1} round={round} slotIndex={slotIndex} editable={editable} onMove={onMove} />
+      <div className="bracket__divider" />
+      <EmptyBracketRow side={2} round={round} slotIndex={slotIndex} editable={editable} onMove={onMove} />
+    </div>
+  )
+}
+
+function EmptyBracketRow({
+  side, round, slotIndex, editable, onMove,
+}: {
+  side: 1 | 2
+  round: number
+  slotIndex: number
+  editable: boolean
+  onMove?: (from: BracketSlot, to: BracketTarget) => Promise<void>
+}) {
+  const target: EmptyBracketSlot = { type: 'empty', round, slotIndex, side }
+  const { handleDragOver, handleDragLeave, handleDrop } = useBracketDropHandlers(editable, onMove, target)
 
   return (
-    <div className="bracket__match-card">
-      <div className={`bracket__player-row ${p1Win ? 'bracket__player-row--winner' : ''}`}>
-        <span className="bracket__player-name">{side1}</span>
-        {match.score && p1Win && <span className="bracket__score">{match.score}</span>}
+    <div
+      className={[
+        'bracket__player-row',
+        'bracket__player-row--empty-slot',
+        editable ? 'bracket__player-row--droppable' : 'bracket__tbd',
+      ].filter(Boolean).join(' ')}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {editable ? 'Свободно' : 'TBD'}
+    </div>
+  )
+}
+
+function MatchCard({
+  match, isDoubles, editable = false, onMove,
+}: {
+  match: Match
+  isDoubles: boolean
+  editable?: boolean
+  onMove?: (from: BracketSlot, to: BracketTarget) => Promise<void>
+}) {
+  const p1Win = match.winner !== null && match.player1 !== null && match.winner === match.player1
+  const p2Win = match.winner !== null && match.player2 !== null && match.winner === match.player2
+
+  function handleDragStart(e: DragEvent<HTMLDivElement>, side: 1 | 2) {
+    if (!editable || !onMove || isSideEmpty(match, side)) return
+    e.dataTransfer.setData(BRACKET_DRAG_TYPE, JSON.stringify({ matchId: match.id, side }))
+    e.dataTransfer.effectAllowed = 'move'
+    e.currentTarget.classList.add('bracket__player-row--dragging')
+  }
+
+  function handleDragEnd(e: DragEvent<HTMLDivElement>) {
+    e.currentTarget.classList.remove('bracket__player-row--dragging')
+    document.querySelectorAll('.bracket__player-row--drop-target').forEach(el => {
+      el.classList.remove('bracket__player-row--drop-target')
+    })
+  }
+
+  function renderRow(side: 1 | 2, winner: boolean) {
+    const empty = isSideEmpty(match, side)
+    const target: BracketSlot = { matchId: match.id, side }
+    const { handleDragOver, handleDragLeave, handleDrop } = useBracketDropHandlers(editable, onMove, target)
+    const canDrag = editable && !empty
+    const canDrop = editable
+
+    return (
+      <div
+        className={[
+          'bracket__player-row',
+          winner ? 'bracket__player-row--winner' : '',
+          canDrag ? 'bracket__player-row--draggable' : '',
+          empty && canDrop ? 'bracket__player-row--empty-slot bracket__player-row--droppable' : '',
+          empty ? 'bracket__tbd' : '',
+        ].filter(Boolean).join(' ')}
+        draggable={canDrag}
+        onDragStart={e => handleDragStart(e, side)}
+        onDragEnd={handleDragEnd}
+        onDragOver={canDrop ? handleDragOver : undefined}
+        onDragLeave={canDrop ? handleDragLeave : undefined}
+        onDrop={canDrop ? handleDrop : undefined}
+      >
+        {canDrag && <span className="seed-drag-handle">⠿</span>}
+        <span className="bracket__player-name">{sideLabel(match, side, isDoubles)}</span>
+        {match.score && winner && <span className="bracket__score">{match.score}</span>}
       </div>
+    )
+  }
+
+  return (
+    <div className={`bracket__match-card${editable ? ' bracket__match-card--editable' : ''}`}>
+      {renderRow(1, p1Win)}
       <div className="bracket__divider" />
-      <div className={`bracket__player-row ${p2Win ? 'bracket__player-row--winner' : ''}`}>
-        <span className="bracket__player-name">{side2}</span>
-        {match.score && p2Win && <span className="bracket__score">{match.score}</span>}
-      </div>
+      {renderRow(2, p2Win)}
     </div>
   )
 }
