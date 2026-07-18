@@ -17,6 +17,7 @@ interface FieldErrors {
   email?: string[]
   first_name?: string[]
   last_name?: string[]
+  role?: string[]
 }
 
 export function LoginPage() {
@@ -32,6 +33,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [role, setRole] = useState<'player' | 'organizer'>('player')
 
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -42,6 +44,7 @@ export function LoginPage() {
     setGlobalError(null)
     setFieldErrors({})
     setPasswordConfirm('')
+    if (next === 'login') setRole('player')
   }
 
   async function onSubmit(e: FormEvent) {
@@ -65,6 +68,7 @@ export function LoginPage() {
           email: email.trim() || undefined,
           first_name: firstName.trim() || undefined,
           last_name: lastName.trim() || undefined,
+          role,
         })
       }
       navigate(from, { replace: true })
@@ -77,7 +81,7 @@ export function LoginPage() {
         const detailParts: string[] = []
         for (const [key, val] of Object.entries(e.data)) {
           const arr = Array.isArray(val) ? val : [String(val)]
-          if (key in { username: 1, password: 1, email: 1, first_name: 1, last_name: 1 }) {
+          if (key in { username: 1, password: 1, email: 1, first_name: 1, last_name: 1, role: 1 }) {
             ;(fe as Record<string, string[]>)[key] = arr
           } else {
             detailParts.push(arr.join(' '))
@@ -163,6 +167,18 @@ export function LoginPage() {
               disabled={submitting}
               error={fieldErrors.last_name}
             />
+            <FormField
+              as="select"
+              label="Роль"
+              required
+              value={role}
+              onChange={(e) => setRole(e.target.value as 'player' | 'organizer')}
+              disabled={submitting}
+              error={fieldErrors.role}
+            >
+              <option value="player">Игрок — только просмотр</option>
+              <option value="organizer">Организатор — создание и редактирование турниров</option>
+            </FormField>
           </>
         )}
 
