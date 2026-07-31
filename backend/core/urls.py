@@ -1,6 +1,8 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from core.views import MatchViewSet, PlayerViewSet, TournamentRegistrationViewSet, TournamentViewSet, UserViewSet
+from core.views.user import CurrentUserView
 
 router = DefaultRouter()
 router.register("players", PlayerViewSet, basename="player")
@@ -9,4 +11,7 @@ router.register("registrations", TournamentRegistrationViewSet, basename="regist
 router.register("matches", MatchViewSet, basename="match")
 router.register("users", UserViewSet, basename="user")
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("users/me/", CurrentUserView.as_view(), name="current-user"),
+    *router.urls,
+]

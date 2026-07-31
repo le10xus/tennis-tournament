@@ -1,16 +1,18 @@
 from collections import defaultdict
 from math import ceil, log2
 
-from django.db.models import Count, F
+from django.db import transaction
+from django.db.models import Count, F, Q
 from rest_framework import status as http_status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from core.models import Match, Tournament, TournamentRegistration
-from core.permissions import RolePermission
+from core.permissions import RolePermission, TournamentRegistrationPermission
 from core.serializers import TournamentSerializer, TournamentRegistrationSerializer
 from core.serializers.match import MatchSerializer
+from core.serializers.tournament import registration_eligibility_error
 
 
 class TournamentViewSet(ModelViewSet):
@@ -19,7 +21,14 @@ class TournamentViewSet(ModelViewSet):
     queryset = Tournament.objects.none()
 
     def get_queryset(self):
-        qs = Tournament.objects.annotate(players_count=Count("players"))
+        qs = Tournament.objects.annotate(
+            players_count=Count(
+                "tournamentregistration",
+                filter=Q(
+                    tournamentregistration__status=TournamentRegistration.Status.APPROVED
+                ),
+            )
+        )
         status_param = self.request.query_params.get("status")
         gender_type = self.request.query_params.get("gender_type")
         kind_param = self.request.query_params.get("kind")
@@ -40,7 +49,10 @@ class TournamentViewSet(ModelViewSet):
         tournament = self.get_object()
         regs = list(
             TournamentRegistration.objects
-            .filter(tournament=tournament)
+            .filter(
+                tournament=tournament,
+                status=TournamentRegistration.Status.APPROVED,
+            )
             .select_related("player")
             .order_by(F("seed").asc(nulls_last=True), "registered_at")
         )
@@ -205,16 +217,89 @@ class TournamentViewSet(ModelViewSet):
 
 
 class TournamentRegistrationViewSet(ModelViewSet):
-    permission_classes = [RolePermission]
+    permission_classes = [TournamentRegistrationPermission]
     serializer_class = TournamentRegistrationSerializer
     queryset = TournamentRegistration.objects.none()
 
     def get_queryset(self):
         qs = TournamentRegistration.objects.select_related("player", "tournament")
+        user = self.request.user
+        if not user.is_authenticated:
+            qs = qs.filter(status=TournamentRegistration.Status.APPROVED)
+        elif not user.is_staff and getattr(user, "role", "player") == "player":
+            visible = Q(status=TournamentRegistration.Status.APPROVED)
+            if user.player_id:
+                visible |= Q(player_id=user.player_id)
+            qs = qs.filter(visible)
+
         tournament_id = self.request.query_params.get("tournament")
         player_id = self.request.query_params.get("player")
+        status_param = self.request.query_params.get("status")
         if tournament_id:
             qs = qs.filter(tournament_id=tournament_id)
         if player_id:
             qs = qs.filter(player_id=player_id)
+        if status_param:
+            qs = qs.filter(status=status_param)
         return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        is_player = (
+            not user.is_staff
+            and getattr(user, "role", "player") == "player"
+        )
+        serializer.save(
+            status=(
+                TournamentRegistration.Status.PENDING
+                if is_player
+                else TournamentRegistration.Status.APPROVED
+            )
+        )
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        with transaction.atomic():
+            registration = (
+                TournamentRegistration.objects
+                .select_for_update()
+                .select_related("player", "tournament")
+                .get(pk=self.get_object().pk)
+            )
+            tournament = (
+                Tournament.objects
+                .select_for_update()
+                .get(pk=registration.tournament_id)
+            )
+
+            if registration.status == TournamentRegistration.Status.APPROVED:
+                return Response(
+                    self.get_serializer(registration).data,
+                    status=http_status.HTTP_200_OK,
+                )
+            eligibility_error = registration_eligibility_error(
+                tournament, registration.player
+            )
+            if eligibility_error:
+                _, message = eligibility_error
+                return Response(
+                    {"detail": message},
+                    status=http_status.HTTP_400_BAD_REQUEST,
+                )
+            approved_count = TournamentRegistration.objects.filter(
+                tournament=tournament,
+                status=TournamentRegistration.Status.APPROVED,
+            ).count()
+            if approved_count >= tournament.max_players:
+                return Response(
+                    {"detail": "В турнире нет свободных мест."},
+                    status=http_status.HTTP_400_BAD_REQUEST,
+                )
+
+            registration.status = TournamentRegistration.Status.APPROVED
+            registration.save(update_fields=["status"])
+
+        return Response(
+            self.get_serializer(registration).data,
+            status=http_status.HTTP_200_OK,
+        )

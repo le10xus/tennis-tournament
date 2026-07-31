@@ -6,3 +6,63 @@
 .player-link:hover {
   color: var(--accent);
 }
+
+.rating-search {
+  max-width: 360px;
+  margin-bottom: 1rem;
+}
+
+.rating-search label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.rating-search input {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.rating-search input:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-bg);
+}
+
+.rating-gender-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.rating-gender-tab {
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary, #6b7280);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rating-gender-tab:hover {
+  color: var(--text-h);
+}
+
+.rating-gender-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.rating-gender-tab span {
+  margin-left: 0.25rem;
+  font-weight: 400;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { matchesApi, registrationsApi, tournamentsApi } from '../../api'
+import { matchesApi, registrationsApi, tournamentsApi, usersApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { categoryLabel } from '../../utils/categories'
 import { statusBadge } from '../matches/matchUtils'
@@ -18,11 +18,17 @@ const STATUS_BADGE: Record<string, string> = {
 export function TournamentPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { canEdit } = useAuth()
+  const { canEdit, isAuthenticated, role } = useAuth()
 
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [matches, setMatches] = useState<Match[]>([])
+  const [playerGender, setPlayerGender] = useState<'male' | 'female' | null>(null)
+  const [playerRating, setPlayerRating] = useState<number | null>(null)
+  const [playerProfileLoaded, setPlayerProfileLoaded] = useState(false)
+  const [applying, setApplying] = useState(false)
+  const [approvingId, setApprovingId] = useState<number | null>(null)
+  const [applicationError, setApplicationError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,6 +53,21 @@ export function TournamentPage() {
       .finally(() => setLoading(false))
   }, [id])
 
+  useEffect(() => {
+    if (isAuthenticated && role === 'player' && !canEdit) {
+      usersApi.getMe()
+        .then(profile => {
+          setPlayerGender(profile.player_gender)
+          setPlayerRating(profile.player_rating)
+        })
+        .catch(() => {
+          setPlayerGender(null)
+          setPlayerRating(null)
+        })
+        .finally(() => setPlayerProfileLoaded(true))
+    }
+  }, [canEdit, isAuthenticated, role])
+
   if (loading) return <p className="state-msg">Загрузка…</p>
   if (error || !tournament) return (
     <div className="empty-state">
@@ -56,6 +77,80 @@ export function TournamentPage() {
   )
 
   const isDoubles = tournament.kind === 'doubles'
+  const approvedRegistrations = registrations.filter(reg => reg.status === 'approved')
+  const pendingRegistrations = registrations.filter(reg => reg.status === 'pending')
+  const ownRegistration = registrations.find(reg => reg.is_current_user)
+  const isPlayer = isAuthenticated && role === 'player' && !canEdit
+  const tournamentId = tournament.id
+  const genderMismatch = Boolean(
+    playerGender
+    && tournament.gender_type !== 'mixed'
+    && tournament.gender_type !== playerGender,
+  )
+  const ratingTooLow = (
+    playerRating !== null
+    && tournament.min_rating !== null
+    && playerRating < tournament.min_rating
+  )
+  const ratingTooHigh = (
+    playerRating !== null
+    && tournament.max_rating !== null
+    && playerRating > tournament.max_rating
+  )
+  const ratingLimit = tournament.min_rating !== null || tournament.max_rating !== null
+    ? `${tournament.min_rating ?? 'без ограничения'} — ${tournament.max_rating ?? 'без ограничения'}`
+    : null
+  const applicationUnavailableReason = !playerProfileLoaded
+    ? 'Проверяем условия участия…'
+    : tournament.status !== 'registration'
+      ? 'Регистрация на турнир закрыта.'
+      : genderMismatch
+        ? 'Категория турнира не соответствует вашему полу.'
+        : ratingTooLow
+          ? `Для участия нужен рейтинг не ниже ${tournament.min_rating}.`
+          : ratingTooHigh
+            ? `Для участия нужен рейтинг не выше ${tournament.max_rating}.`
+            : approvedRegistrations.length >= tournament.max_players
+              ? 'В турнире нет свободных мест.'
+              : null
+
+  async function handleApply() {
+    setApplying(true)
+    setApplicationError(null)
+    try {
+      const registration = await registrationsApi.apply(tournamentId)
+      setRegistrations(current => [...current, registration])
+    } catch (err) {
+      const apiError = err as {
+        data?: { detail?: string; player?: string[]; tournament?: string[]; non_field_errors?: string[] }
+      }
+      setApplicationError(
+        apiError.data?.player?.[0]
+        ?? apiError.data?.tournament?.[0]
+        ?? apiError.data?.non_field_errors?.[0]
+        ?? apiError.data?.detail
+        ?? 'Не удалось подать заявку.',
+      )
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  async function handleApprove(registrationId: number) {
+    setApprovingId(registrationId)
+    setApplicationError(null)
+    try {
+      const approved = await registrationsApi.approve(registrationId)
+      setRegistrations(current => current.map(reg => (
+        reg.id === registrationId ? approved : reg
+      )))
+    } catch (err) {
+      const apiError = err as { data?: { detail?: string } }
+      setApplicationError(apiError.data?.detail ?? 'Не удалось подтвердить заявку.')
+    } finally {
+      setApprovingId(null)
+    }
+  }
 
   return (
     <div className="tournament-page">
@@ -87,18 +182,96 @@ export function TournamentPage() {
             </span>
           </InfoRow>
           <InfoRow label="Категория"><span>{categoryLabel(tournament.kind, tournament.gender_type)}</span></InfoRow>
+          {ratingLimit && <InfoRow label="Рейтинг"><span>{ratingLimit}</span></InfoRow>}
           <InfoRow label="Формат"><span>{tournament.format_display}</span></InfoRow>
           <InfoRow label="Начало"><span>{tournament.start_date}</span></InfoRow>
           {tournament.end_date && <InfoRow label="Окончание"><span>{tournament.end_date}</span></InfoRow>}
           {tournament.location && <InfoRow label="Место"><span>{tournament.location}</span></InfoRow>}
           <InfoRow label="Игроков">
-            <span>{registrations.length} / {tournament.max_players}</span>
+            <span>{approvedRegistrations.length} / {tournament.max_players}</span>
           </InfoRow>
         </div>
         {tournament.description && (
           <p className="t-card__desc">{tournament.description}</p>
         )}
       </div>
+
+      {isPlayer && (
+        <div className="t-application">
+          <div>
+            <h2 className="t-application__title">Участие в турнире</h2>
+            {ownRegistration?.status === 'pending' && (
+              <span className="badge badge--yellow">Заявка рассматривается</span>
+            )}
+            {ownRegistration?.status === 'approved' && (
+              <span className="badge badge--green">Вы участвуете</span>
+            )}
+            {!ownRegistration && applicationUnavailableReason && (
+              <p className="t-application__hint">{applicationUnavailableReason}</p>
+            )}
+          </div>
+          {!ownRegistration && !applicationUnavailableReason && (
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={applying}
+              onClick={handleApply}
+            >
+              {applying ? 'Отправка…' : 'Подать заявку'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {canEdit && pendingRegistrations.length > 0 && (
+        <section className="t-section">
+          <h2 className="section-title">
+            Заявки на рассмотрении
+            <span className="section-count">{pendingRegistrations.length}</span>
+          </h2>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Игрок</th>
+                  <th>Пол</th>
+                  <th className="col-num">Рейтинг</th>
+                  <th>Дата заявки</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingRegistrations.map(reg => (
+                  <tr key={reg.id}>
+                    <td className="col-name">
+                      <Link to={`/players/${reg.player}`} className="player-ref-link">
+                        {reg.player_detail.last_name} {reg.player_detail.first_name}
+                      </Link>
+                    </td>
+                    <td>{reg.player_detail.gender_display}</td>
+                    <td className="col-num">{reg.player_detail.rating}</td>
+                    <td className="col-secondary">
+                      {new Date(reg.registered_at).toLocaleDateString('ru-RU')}
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        type="button"
+                        disabled={approvingId === reg.id}
+                        onClick={() => handleApprove(reg.id)}
+                      >
+                        {approvingId === reg.id ? 'Подтверждение…' : 'Подтвердить'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {applicationError && <p className="form-error t-application-error">{applicationError}</p>}
 
       {/* ── Матчи ── */}
       <section className="t-section">
@@ -186,10 +359,10 @@ export function TournamentPage() {
       <section className="t-section">
         <h2 className="section-title">
           Участники
-          <span className="section-count">{registrations.length}</span>
+          <span className="section-count">{approvedRegistrations.length}</span>
         </h2>
 
-        {registrations.length === 0 ? (
+        {approvedRegistrations.length === 0 ? (
           <p className="state-msg">Игроков пока нет.</p>
         ) : (
           <div className="table-wrap">
@@ -205,7 +378,7 @@ export function TournamentPage() {
                 </tr>
               </thead>
               <tbody>
-                {registrations.map(reg => (
+                {approvedRegistrations.map(reg => (
                   <tr key={reg.id}>
                     <td className="col-num col-center">{reg.seed ?? '—'}</td>
                     <td className="col-name">

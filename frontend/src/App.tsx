@@ -16,6 +16,8 @@ import { UserFormPage } from './pages/users/UserFormPage'
 import { AuthProvider } from './auth/AuthContext'
 import { RequireEdit } from './auth/RequireEdit'
 import { RequireAdmin } from './auth/RequireAdmin'
+import { RequireAuth } from './auth/RequireAuth'
+import { ProfilePage } from './pages/profile/ProfilePage'
 
 export default function App() {
   return (
@@ -51,6 +53,10 @@ export default function App() {
                 <Route path="new" element={<MatchFormPage />} />
                 <Route path=":id/edit" element={<MatchFormPage />} />
               </Route>
+            </Route>
+
+            <Route element={<RequireAuth />}>
+              <Route path="profile" element={<ProfilePage />} />
             </Route>
 
             <Route element={<RequireAdmin />}>

@@ -21,6 +21,8 @@ const EMPTY: TournamentFormData = {
   location: '',
   description: '',
   max_players: 16,
+  min_rating: null,
+  max_rating: null,
 }
 
 export function TournamentFormPage() {
@@ -65,9 +67,11 @@ export function TournamentFormPage() {
           location: t.location,
           description: t.description,
           max_players: t.max_players,
+          min_rating: t.min_rating,
+          max_rating: t.max_rating,
         }))
         .catch(() => navigate('/tournaments')),
-        registrationsApi.listForTournament(Number(id))
+        registrationsApi.listForTournament(Number(id), 'approved')
           .then(d => setRegistrations(d.results)),
       )
     }
@@ -107,6 +111,9 @@ export function TournamentFormPage() {
             rating: player.rating,
             rating_type_display: player.rating_type_display,
           },
+          status: 'approved',
+          status_display: 'Подтверждена',
+          is_current_user: false,
           registered_at: '',
           seed: null,
           pair_id: null,
@@ -170,7 +177,15 @@ export function TournamentFormPage() {
   if (loading) return <p className="state-msg">Загрузка…</p>
 
   const registeredPlayerIds = new Set(registrations.map(r => r.player))
-  const availablePlayers = allPlayers.filter(p => !registeredPlayerIds.has(p.id))
+  const availablePlayers = allPlayers.filter(player => (
+    !registeredPlayerIds.has(player.id)
+    && (form.gender_type === 'mixed' || player.gender === form.gender_type)
+    && (form.min_rating === null || player.rating >= form.min_rating)
+    && (form.max_rating === null || player.rating <= form.max_rating)
+  ))
+  const selectedPlayerIsAvailable = availablePlayers.some(
+    player => player.id === Number(selectedPlayerId),
+  )
 
   return (
     <div className="form-page">
@@ -244,6 +259,23 @@ export function TournamentFormPage() {
           />
         </div>
 
+        <div className="form-row">
+          <FormField
+            label="Рейтинг от" type="number" min={0}
+            value={form.min_rating ?? ''}
+            onChange={e => set('min_rating', e.target.value === '' ? null : Number(e.target.value))}
+            error={errors.min_rating}
+            placeholder="Без ограничения"
+          />
+          <FormField
+            label="Рейтинг до" type="number" min={0}
+            value={form.max_rating ?? ''}
+            onChange={e => set('max_rating', e.target.value === '' ? null : Number(e.target.value))}
+            error={errors.max_rating}
+            placeholder="Без ограничения"
+          />
+        </div>
+
         <FormField
           label="Место проведения"
           value={form.location}
@@ -306,7 +338,7 @@ export function TournamentFormPage() {
             type="button"
             className="btn btn-primary"
             onClick={handleAddPlayer}
-            disabled={!selectedPlayerId || addingPlayer}
+            disabled={!selectedPlayerId || !selectedPlayerIsAvailable || addingPlayer}
           >
             {addingPlayer ? '…' : '+ Добавить'}
           </button>

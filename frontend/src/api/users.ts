@@ -1,5 +1,5 @@
 import { http } from './http'
-import type { Paginated, User, UserFormData } from '../types'
+import type { Paginated, Profile, ProfileFormData, User, UserFormData } from '../types'
 
 export const usersApi = {
   list: (params?: Record<string, string>) => {
@@ -9,6 +9,12 @@ export const usersApi = {
 
   get: (id: number) =>
     http.get<User>(`/users/${id}/`),
+
+  getMe: () =>
+    http.get<Profile>('/users/me/'),
+
+  updateMe: (data: Partial<ProfileFormData>) =>
+    http.patch<Profile>('/users/me/', data),
 
   create: (data: UserFormData) =>
     http.post<User>('/users/', data),

@@ -39,6 +39,37 @@
   line-height: 1.5;
 }
 
+.t-application {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin: -1rem 0 2rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.t-application__title {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.t-application__hint,
+.t-application-error {
+  margin: 0;
+}
+
+.t-application__hint {
+  color: var(--text-secondary, #6b7280);
+  font-size: 0.9rem;
+}
+
+.t-application-error {
+  margin-bottom: 1.5rem;
+}
+
 /* ── Sections ── */
 .t-section {
   margin-bottom: 2.5rem;
@@ -52,4 +83,11 @@
 
 .player-ref-link:hover {
   color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .t-application {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

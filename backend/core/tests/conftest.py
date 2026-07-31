@@ -43,6 +43,23 @@ def organizer_client(db):
 
 
 @pytest.fixture
+def player_user(db):
+    return User.objects.create_user(
+        username="player_user",
+        password="testpass123",
+        email="player_user@example.com",
+        role=User.Role.PLAYER,
+    )
+
+
+@pytest.fixture
+def player_client(player_user):
+    client = APIClient()
+    client.force_authenticate(user=player_user)
+    return client
+
+
+@pytest.fixture
 def player_factory(db):
     counter = itertools.count(1)
 

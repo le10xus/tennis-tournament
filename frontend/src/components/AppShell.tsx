@@ -35,10 +35,10 @@ export function AppShell() {
         <div className="nav-user">
           {isAuthenticated ? (
             <>
-              <span className="nav-username">
+              <NavLink to="/profile" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link nav-profile'}>
                 {username}
                 <span className="nav-role">{roleLabel}</span>
-              </span>
+              </NavLink>
               <button type="button" className="btn btn-ghost nav-logout" onClick={logout}>
                 Выйти
               </button>

@@ -30,6 +30,9 @@ export interface Registration {
   tournament_detail: TournamentNested
   player: number
   player_detail: PlayerInReg
+  status: 'pending' | 'approved'
+  status_display: string
+  is_current_user: boolean
   registered_at: string
   seed: number | null
   pair_id: number | null
@@ -39,11 +42,21 @@ export const registrationsApi = {
   listForPlayer: (playerId: number) =>
     http.get<Paginated<Registration>>(`/registrations/?player=${playerId}&page_size=200`),
 
-  listForTournament: (tournamentId: number) =>
-    http.get<Paginated<Registration>>(`/registrations/?tournament=${tournamentId}&page_size=200`),
+  listForTournament: (tournamentId: number, status?: Registration['status']) => {
+    const statusParam = status ? `&status=${status}` : ''
+    return http.get<Paginated<Registration>>(
+      `/registrations/?tournament=${tournamentId}&page_size=200${statusParam}`,
+    )
+  },
 
   add: (tournamentId: number, playerId: number) =>
     http.post<Registration>('/registrations/', { tournament: tournamentId, player: playerId }),
+
+  apply: (tournamentId: number) =>
+    http.post<Registration>('/registrations/', { tournament: tournamentId }),
+
+  approve: (registrationId: number) =>
+    http.post<Registration>(`/registrations/${registrationId}/approve/`, {}),
 
   remove: (registrationId: number) =>
     http.delete(`/registrations/${registrationId}/`),

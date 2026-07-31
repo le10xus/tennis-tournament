@@ -58,7 +58,7 @@ export function TournamentBracketPage() {
   useEffect(() => {
     Promise.all([
       tournamentsApi.get(numId),
-      registrationsApi.listForTournament(numId),
+      registrationsApi.listForTournament(numId, 'approved'),
       matchesApi.list({ tournament: String(numId), page_size: '500' }),
     ])
       .then(([t, regs, matchData]) => {
@@ -95,7 +95,7 @@ export function TournamentBracketPage() {
   }
 
   async function reloadRegs() {
-    const regs = await registrationsApi.listForTournament(numId)
+    const regs = await registrationsApi.listForTournament(numId, 'approved')
     applyRegistrations(regs.results)
   }
 

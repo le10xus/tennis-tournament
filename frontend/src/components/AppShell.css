@@ -56,7 +56,8 @@
   gap: 0.75rem;
 }
 
-.nav-username {
+.nav-username,
+.nav-profile {
   font-size: 0.85rem;
   color: var(--text);
   display: flex;
@@ -64,6 +65,11 @@
   align-items: flex-end;
   gap: 0;
   line-height: 1.2;
+  text-decoration: none;
+}
+
+.nav-profile:hover {
+  color: var(--accent);
 }
 
 .nav-role {

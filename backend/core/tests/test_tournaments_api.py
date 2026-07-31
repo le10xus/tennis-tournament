@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from core.models import Tournament, TournamentRegistration
+from core.models import Match, Tournament, TournamentRegistration
 
 
 @pytest.mark.django_db
@@ -17,6 +17,8 @@ class TestTournamentsAPI:
             "gender_type": "male",
             "format": "round_robin",
             "max_players": 16,
+            "min_rating": 900,
+            "max_rating": 1400,
         }
         response = organizer_client.post(self.url, payload, format="json")
         assert response.status_code == 201, response.content
@@ -24,6 +26,8 @@ class TestTournamentsAPI:
         assert data["name"] == "Кубок весны"
         assert data["status"] == Tournament.Status.DRAFT
         assert data["format_display"] == "Круговой"
+        assert data["min_rating"] == 900
+        assert data["max_rating"] == 1400
 
     def test_create_end_before_start_fails(self, organizer_client):
         payload = {
@@ -35,6 +39,21 @@ class TestTournamentsAPI:
         assert response.status_code == 400
         assert "end_date" in response.json()
 
+    def test_create_min_rating_above_max_rating_fails(self, organizer_client):
+        response = organizer_client.post(
+            self.url,
+            {
+                "name": "Bad rating range",
+                "start_date": str(date.today()),
+                "min_rating": 1500,
+                "max_rating": 1000,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "max_rating" in response.json()
+
     def test_players_count_annotation(self, api_client, tournament, player_factory):
         TournamentRegistration.objects.create(
             tournament=tournament, player=player_factory()
@@ -45,6 +64,46 @@ class TestTournamentsAPI:
         response = api_client.get(f"{self.url}{tournament.id}/")
         assert response.status_code == 200
         assert response.json()["players_count"] == 2
+
+    def test_players_count_ignores_pending(
+        self, api_client, tournament, player_factory
+    ):
+        TournamentRegistration.objects.create(
+            tournament=tournament,
+            player=player_factory(),
+            status=TournamentRegistration.Status.APPROVED,
+        )
+        TournamentRegistration.objects.create(
+            tournament=tournament,
+            player=player_factory(),
+            status=TournamentRegistration.Status.PENDING,
+        )
+
+        response = api_client.get(f"{self.url}{tournament.id}/")
+
+        assert response.status_code == 200
+        assert response.json()["players_count"] == 1
+
+    def test_generate_bracket_ignores_pending(
+        self, organizer_client, tournament, player_factory
+    ):
+        TournamentRegistration.objects.create(
+            tournament=tournament,
+            player=player_factory(),
+            status=TournamentRegistration.Status.APPROVED,
+        )
+        TournamentRegistration.objects.create(
+            tournament=tournament,
+            player=player_factory(),
+            status=TournamentRegistration.Status.PENDING,
+        )
+
+        response = organizer_client.post(
+            f"{self.url}{tournament.id}/generate_bracket/"
+        )
+
+        assert response.status_code == 400
+        assert Match.objects.filter(tournament=tournament).count() == 0
 
     def test_filter_by_status(self, api_client, tournament):
         Tournament.objects.create(

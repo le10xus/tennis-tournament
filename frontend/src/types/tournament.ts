@@ -14,6 +14,8 @@ export interface Tournament {
   location: string
   description: string
   max_players: number
+  min_rating: number | null
+  max_rating: number | null
   players_count: number
   created_at: string
 }
@@ -39,6 +41,8 @@ export interface TournamentFormData {
   location: string
   description: string
   max_players: number
+  min_rating: number | null
+  max_rating: number | null
 }
 
 export type TournamentApiErrors = Partial<

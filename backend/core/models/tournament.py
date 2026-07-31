@@ -30,6 +30,8 @@ class Tournament(models.Model):
     location = models.CharField(max_length=200, blank=True)
     description = models.TextField(blank=True)
     max_players = models.PositiveIntegerField(default=16)
+    min_rating = models.PositiveIntegerField(null=True, blank=True)
+    max_rating = models.PositiveIntegerField(null=True, blank=True)
     players = models.ManyToManyField(Player, through="TournamentRegistration", related_name="tournaments")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -41,8 +43,13 @@ class Tournament(models.Model):
 
 
 class TournamentRegistration(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Заявка рассматривается"
+        APPROVED = "approved", "Подтверждена"
+
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE)
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.APPROVED)
     registered_at = models.DateTimeField(auto_now_add=True)
     seed = models.PositiveSmallIntegerField(null=True, blank=True)
     pair_id = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Номер пары (для парных турниров)")
