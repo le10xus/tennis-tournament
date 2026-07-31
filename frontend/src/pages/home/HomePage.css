@@ -88,6 +88,8 @@
 
 .nearest-tournament__btn {
   width: 100%;
+  box-sizing: border-box;
+  justify-content: center;
   text-align: center;
   margin-top: 0.5rem;
 }

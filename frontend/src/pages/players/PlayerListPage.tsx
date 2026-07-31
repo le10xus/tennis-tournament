@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { playersApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { DeleteTableAction, EditTableAction } from '../../components/TableActionIcon'
 import type { Gender, Player } from '../../types'
 import './PlayerListPage.css'
 
@@ -146,18 +147,17 @@ export function PlayerListPage() {
                   <td>{p.rating_type_display}</td>
                   <td className="col-actions">
                     {canEdit && (
-                      <Link to={`/players/${p.id}/edit`} className="btn btn-ghost btn-sm">
-                        Редактировать
-                      </Link>
+                      <EditTableAction
+                        to={`/players/${p.id}/edit`}
+                        label={`Редактировать игрока «${p.first_name} ${p.last_name}»`}
+                      />
                     )}
                     {canDelete && (
-                      <button
-                        className="btn btn-danger-ghost"
+                      <DeleteTableAction
                         onClick={() => handleDelete(p)}
                         disabled={deletingId === p.id}
-                      >
-                        {deletingId === p.id ? '…' : 'Удалить'}
-                      </button>
+                        label={`Удалить игрока «${p.first_name} ${p.last_name}»`}
+                      />
                     )}
                   </td>
                 </tr>

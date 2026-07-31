@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { playersApi, tournamentsApi } from '../../api'
 import { registrationsApi } from '../../api/registrations'
 import { FormField } from '../../components/FormField'
+import { DeleteTableAction } from '../../components/TableActionIcon'
 import { CATEGORIES, categoryValue } from '../../utils/categories'
 import type { Player, TournamentApiErrors, TournamentFormData } from '../../types'
 import type { Registration } from '../../api/registrations'
@@ -368,14 +369,12 @@ export function TournamentFormPage() {
                     <td className="col-num">{reg.player_detail.rating}</td>
                     <td className="col-secondary">{reg.player_detail.rating_type_display}</td>
                     <td className="col-actions">
-                      <button
-                        type="button"
-                        className="btn btn-danger-ghost"
+                      <DeleteTableAction
                         onClick={() => handleRemovePlayer(reg)}
                         disabled={removingId === reg.id}
-                      >
-                        {removingId === reg.id ? '…' : 'Убрать'}
-                      </button>
+                        label={`Убрать игрока «${reg.player_detail.first_name} ${reg.player_detail.last_name}»`}
+                        title="Убрать"
+                      />
                     </td>
                   </tr>
                 ))}

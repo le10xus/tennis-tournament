@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { tournamentsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { DeleteTableAction, EditTableAction } from '../../components/TableActionIcon'
 import { CATEGORIES, categoryLabel } from '../../utils/categories'
 import type { Tournament } from '../../types'
 import './TournamentListPage.css'
@@ -141,18 +142,17 @@ export function TournamentListPage() {
                   <td className="col-num">{t.players_count} / {t.max_players}</td>
                   <td className="col-actions">
                     {canEdit && (
-                      <Link to={`/tournaments/${t.id}/edit`} className="btn btn-ghost btn-sm">
-                        Редактировать
-                      </Link>
+                      <EditTableAction
+                        to={`/tournaments/${t.id}/edit`}
+                        label={`Редактировать турнир «${t.name}»`}
+                      />
                     )}
                     {canDelete && (
-                      <button
-                        className="btn btn-danger-ghost"
+                      <DeleteTableAction
                         onClick={() => handleDelete(t)}
                         disabled={deletingId === t.id}
-                      >
-                        {deletingId === t.id ? '…' : 'Удалить'}
-                      </button>
+                        label={`Удалить турнир «${t.name}»`}
+                      />
                     )}
                   </td>
                 </tr>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { matchesApi, tournamentsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { DeleteTableAction } from '../../components/TableActionIcon'
 import { CATEGORIES, categoryLabel } from '../../utils/categories'
 import type { Match, TournamentBrief } from '../../types'
 import { statusBadge, playerName } from './matchUtils'
@@ -148,13 +149,11 @@ export function MatchListPage() {
                   </td>
                   <td className="col-actions">
                     {canDelete && (
-                      <button
-                        className="btn btn-danger-ghost"
+                      <DeleteTableAction
                         onClick={() => handleDelete(m)}
                         disabled={deletingId === m.id}
-                      >
-                        {deletingId === m.id ? '…' : 'Удалить'}
-                      </button>
+                        label={`Удалить матч ${playerName(m.player1_detail)} — ${playerName(m.player2_detail)}`}
+                      />
                     )}
                   </td>
                 </tr>

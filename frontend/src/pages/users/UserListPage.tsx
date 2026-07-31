@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usersApi } from '../../api'
+import { DeleteTableAction } from '../../components/TableActionIcon'
 import type { User } from '../../types'
 import './UserListPage.css'
 
@@ -85,13 +86,11 @@ export function UserListPage() {
                     </span>
                   </td>
                   <td className="col-actions">
-                    <button
-                      className="btn btn-danger-ghost"
+                    <DeleteTableAction
                       onClick={() => handleDelete(u)}
                       disabled={deletingId === u.id}
-                    >
-                      {deletingId === u.id ? '…' : 'Удалить'}
-                    </button>
+                      label={`Удалить пользователя «${u.username}»`}
+                    />
                   </td>
                 </tr>
               ))}
