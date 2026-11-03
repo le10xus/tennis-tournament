@@ -13,7 +13,31 @@ class Match(models.Model):
         FINISHED = "finished", "Завершён"
         WALKOVER = "walkover", "Техническое поражение"
 
+    class Bracket(models.TextChoices):
+        WINNERS = "winners", "Основная сетка"
+        CONSOLATION = "consolation", "Подвал"
+        THIRD_PLACE = "third_place", "Матч за 3-е место"
+
+    class Group(models.TextChoices):
+        MAIN = "", "Основная"
+        PLACES_5_8 = "5-8", "5–8 места"
+        PLACES_9_16 = "9-16", "9–16 места"
+
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="matches")
+    bracket = models.CharField(max_length=20, choices=Bracket.choices, default=Bracket.WINNERS)
+    group = models.CharField(max_length=10, choices=Group.choices, blank=True, default="")
+    next_match = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="feeder_matches",
+        help_text="Куда идёт победитель",
+    )
+    next_slot = models.PositiveSmallIntegerField(null=True, blank=True)
+    loser_next_match = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="loser_feeder_matches",
+        help_text="Куда идёт проигравший (в сетку с подвалом)",
+    )
+    loser_next_slot = models.PositiveSmallIntegerField(null=True, blank=True)
     gender_type = models.CharField(max_length=10, choices=GenderType.choices, default=GenderType.MALE)
     player1 = models.ForeignKey(
         Player, on_delete=models.PROTECT, null=True, blank=True, related_name="matches_as_p1"
@@ -36,6 +60,7 @@ class Match(models.Model):
     round_number = models.PositiveSmallIntegerField(default=1)
     slot_index = models.PositiveSmallIntegerField(default=0)
     scheduled_at = models.DateTimeField(null=True, blank=True)
+    court = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Корт")
     score = models.CharField(max_length=50, blank=True, help_text='Например: "6:4 7:5"')
 
     def clean(self):

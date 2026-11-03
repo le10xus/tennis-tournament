@@ -128,6 +128,25 @@
   color: var(--text-h);
 }
 
+.tab-bar--discipline {
+  margin-top: -0.5rem;
+  background: transparent;
+  padding: 0;
+}
+
+.tab-bar--discipline .tab-btn {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+  border-radius: 999px;
+}
+
+.tab-bar--discipline .tab-btn--active {
+  color: var(--accent);
+  background: var(--accent-bg);
+  box-shadow: none;
+}
+
 /* ── Rating list ── */
 .rating-list {
   list-style: none;

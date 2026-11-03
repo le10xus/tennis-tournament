@@ -13,6 +13,7 @@ class MatchSerializer(serializers.ModelSerializer):
     tournament_name = serializers.CharField(source="tournament.name", read_only=True)
     gender_type_display = serializers.CharField(source="get_gender_type_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    bracket_display = serializers.CharField(source="get_bracket_display", read_only=True)
     kind = serializers.SerializerMethodField()
     kind_display = serializers.SerializerMethodField()
 
@@ -39,9 +40,14 @@ class MatchSerializer(serializers.ModelSerializer):
             "pair2_player2", "pair2_player2_detail",
             "winner", "winner_detail",
             "status", "status_display",
-            "round_number", "slot_index", "scheduled_at", "score",
+            "bracket", "bracket_display",
+            "next_match", "next_slot", "loser_next_match", "loser_next_slot",
+            "round_number", "slot_index", "scheduled_at", "court", "score",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = [
+            "id", "bracket", "next_match", "next_slot",
+            "loser_next_match", "loser_next_slot",
+        ]
 
     def validate(self, data):
         p1 = data.get("player1", getattr(self.instance, "player1", None))

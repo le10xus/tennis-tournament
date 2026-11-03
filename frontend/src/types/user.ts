@@ -37,6 +37,8 @@ export interface Profile {
   player_id: number | null
   player_gender: 'male' | 'female' | null
   player_rating: number | null
+  player_points_singles: number | null
+  player_points_doubles: number | null
 }
 
 export interface ProfileFormData {

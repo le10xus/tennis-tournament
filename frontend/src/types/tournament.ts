@@ -14,6 +14,10 @@ export interface Tournament {
   location: string
   description: string
   max_players: number
+  courts: number
+  match_duration_minutes: number
+  saturday_start_time: string
+  sunday_start_time: string
   min_rating: number | null
   max_rating: number | null
   players_count: number
@@ -41,6 +45,10 @@ export interface TournamentFormData {
   location: string
   description: string
   max_players: number
+  courts: number
+  match_duration_minutes: number
+  saturday_start_time: string
+  sunday_start_time: string
   min_rating: number | null
   max_rating: number | null
 }

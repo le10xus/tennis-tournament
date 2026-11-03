@@ -28,8 +28,16 @@ export interface Match {
   winner_detail: PlayerBrief | null
   status: MatchStatus
   status_display: string
+  bracket: 'winners' | 'consolation' | 'third_place'
+  bracket_display: string
+  group: '' | '5-8' | '9-16'
+  next_match: number | null
+  next_slot: number | null
+  loser_next_match: number | null
+  loser_next_slot: number | null
   round_number: number
   slot_index: number
+  court: number | null
   scheduled_at: string | null
   score: string
 }
@@ -45,6 +53,7 @@ export interface MatchFormData {
   status: MatchStatus
   round_number: number
   slot_index?: number
+  court?: number | null
   scheduled_at: string | null
   score: string
 }

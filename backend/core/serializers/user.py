@@ -65,6 +65,12 @@ class ProfileSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     player_gender = serializers.CharField(source="player.gender", read_only=True)
     player_rating = serializers.IntegerField(source="player.rating", read_only=True)
+    player_points_singles = serializers.IntegerField(
+        source="player.points_singles", read_only=True
+    )
+    player_points_doubles = serializers.IntegerField(
+        source="player.points_doubles", read_only=True
+    )
 
     class Meta:
         model = User
@@ -73,10 +79,12 @@ class ProfileSerializer(serializers.ModelSerializer):
             "first_name", "last_name",
             "role", "role_display", "is_staff",
             "player_id", "player_gender", "player_rating",
+            "player_points_singles", "player_points_doubles",
         ]
         read_only_fields = [
             "id", "username", "role", "role_display", "is_staff",
             "player_id", "player_gender", "player_rating",
+            "player_points_singles", "player_points_doubles",
         ]
         extra_kwargs = {
             "first_name": {"required": False, "allow_blank": True},

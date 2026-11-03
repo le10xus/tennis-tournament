@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { matchesApi, registrationsApi, tournamentsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import type { Registration } from '../../api/registrations'
+import { DoubleElimBracket } from './DoubleElimBracket'
 import type { Match, Tournament, GenderType } from '../../types'
 import {
   type BracketSlot,
@@ -49,6 +50,7 @@ export function TournamentBracketPage() {
 
   const [savingSeeds, setSavingSeeds] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
   const [genError, setGenError] = useState<string | null>(null)
   const [swappingBracket, setSwappingBracket] = useState(false)
   const [bracketSwapError, setBracketSwapError] = useState<string | null>(null)
@@ -140,6 +142,12 @@ export function TournamentBracketPage() {
   }
 
   async function handleGenerate() {
+    if (tournament?.format === 'double_elim' && matches.length > 0) {
+      const ok = confirm(
+        'Перегенерировать сетку? Все матчи, включая результаты, будут удалены.',
+      )
+      if (!ok) return
+    }
     setGenerating(true)
     setGenError(null)
     try {
@@ -150,6 +158,20 @@ export function TournamentBracketPage() {
       setGenError(e.data?.detail ?? 'Не удалось сгенерировать сетку.')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function handleSchedule() {
+    setScheduling(true)
+    setGenError(null)
+    try {
+      const updated = await tournamentsApi.generateSchedule(numId)
+      setMatches(Array.isArray(updated) ? updated : [])
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } }
+      setGenError(e.data?.detail ?? 'Не удалось составить расписание.')
+    } finally {
+      setScheduling(false)
     }
   }
 
@@ -208,8 +230,8 @@ export function TournamentBracketPage() {
         <span className="badge badge--blue">{tournament.format_display}</span>
       </div>
 
-      {/* ── Seeding panel (editors only) ── */}
-      {canEdit && registrations.length > 0 && (
+      {/* ── Seeding panel (editors only; для сетки с подвалом посев автоматический) ── */}
+      {canEdit && registrations.length > 0 && fmt !== 'double_elim' && (
         <section className="bracket-section">
           <h2 className="section-title">
             {isDoubles ? 'Пары и посевы' : 'Посевы участников'}
@@ -272,7 +294,29 @@ export function TournamentBracketPage() {
             Сетка
             <span className="section-count">{matches.length}</span>
           </h2>
+          {canEdit && fmt === 'double_elim' && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ marginBottom: '0.75rem' }}
+              disabled={generating}
+              onClick={handleGenerate}
+            >
+              {generating ? 'Генерация…' : 'Перегенерировать сетку'}
+            </button>
+          )}
           {canEdit && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ marginBottom: '0.75rem', marginLeft: '0.5rem' }}
+              disabled={scheduling}
+              onClick={handleSchedule}
+            >
+              {scheduling ? 'Составление…' : 'Составить расписание'}
+            </button>
+          )}
+          {canEdit && fmt !== 'double_elim' && (
             <p className="seed-hint">
               {swappingBracket
                 ? 'Сохранение изменений…'
@@ -290,6 +334,13 @@ export function TournamentBracketPage() {
               editable={canEdit}
               onMove={handleBracketMove}
             />
+          ) : fmt === 'double_elim' ? (
+            <DoubleElimBracket
+              matches={matches}
+              registrations={registrations}
+              isDoubles={isDoubles}
+              editable={canEdit}
+            />
           ) : (
             <SingleElimView
               matches={matches}
@@ -303,10 +354,20 @@ export function TournamentBracketPage() {
       )}
 
       {matches.length === 0 && registrations.length >= 2 && (
-        <p className="state-msg" style={{ marginTop: '1rem' }}>
-          Сетка ещё не сгенерирована.
-          {canEdit ? ' Нажмите «Сгенерировать сетку» выше.' : ''}
-        </p>
+        <div className="empty-state" style={{ marginTop: '1rem' }}>
+          <p>Сетка ещё не сгенерирована.</p>
+          {canEdit && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={generating}
+              onClick={handleGenerate}
+            >
+              {generating ? 'Генерация…' : 'Сгенерировать сетку'}
+            </button>
+          )}
+          {genError && <p className="form-error-global">{genError}</p>}
+        </div>
       )}
     </div>
   )

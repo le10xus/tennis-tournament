@@ -1,5 +1,10 @@
 .bracket-page {
-  max-width: 1200px;
+  max-width: none;
+}
+
+/* страница сетки занимает всю ширину окна, без ограничения контента */
+.content:has(.bracket-page) {
+  max-width: none;
 }
 
 .bracket-page__header {

@@ -11,8 +11,11 @@ class PlayerSerializer(serializers.ModelSerializer):
         model = Player
         fields = [
             "id", "first_name", "last_name", "email", "phone", "birth_date",
+            "birth_year", "city",
             "gender", "gender_display",
             "rating", "rating_type", "rating_type_display",
+            "ntrp_singles", "ntrp_doubles", "points_singles", "points_doubles",
+            "is_ftvo",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]

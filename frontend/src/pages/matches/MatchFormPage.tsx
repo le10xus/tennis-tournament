@@ -16,6 +16,7 @@ const EMPTY: MatchFormData = {
   winner: null,
   status: 'scheduled',
   round_number: 1,
+  court: null,
   scheduled_at: '',
   score: '',
 }
@@ -53,6 +54,7 @@ export function MatchFormPage() {
           winner: m.winner,
           status: m.status,
           round_number: m.round_number,
+          court: m.court,
           scheduled_at: m.scheduled_at
             ? new Date(m.scheduled_at).toISOString().slice(0, 16)
             : '',
@@ -175,6 +177,13 @@ export function MatchFormPage() {
             value={form.scheduled_at ?? ''}
             onChange={e => set('scheduled_at', e.target.value)}
             error={errors.scheduled_at}
+          />
+
+          <FormField
+            label="Корт" type="number" min={1} max={20}
+            value={form.court ?? ''}
+            onChange={e => set('court', e.target.value === '' ? null : Number(e.target.value))}
+            error={errors.court}
           />
         </div>
 

@@ -19,9 +19,18 @@ export interface PlayerInReg {
   id: number
   first_name: string
   last_name: string
+  gender: 'male' | 'female'
   gender_display: string
   rating: number
   rating_type_display: string
+  birth_year: number | null
+  birth_date: string | null
+  city: string
+  points_singles: number
+  points_doubles: number
+  ntrp_singles: string
+  ntrp_doubles: string
+  is_ftvo: boolean
 }
 
 export interface Registration {
@@ -36,6 +45,8 @@ export interface Registration {
   registered_at: string
   seed: number | null
   pair_id: number | null
+  invited_by: number | null
+  invited_by_detail: PlayerInReg | null
 }
 
 export const registrationsApi = {
@@ -49,14 +60,24 @@ export const registrationsApi = {
     )
   },
 
-  add: (tournamentId: number, playerId: number) =>
-    http.post<Registration>('/registrations/', { tournament: tournamentId, player: playerId }),
+  add: (tournamentId: number, playerId: number, partnerId?: number) =>
+    http.post<Registration>('/registrations/', {
+      tournament: tournamentId,
+      player: playerId,
+      partner: partnerId,
+    }),
 
-  apply: (tournamentId: number) =>
-    http.post<Registration>('/registrations/', { tournament: tournamentId }),
+  apply: (tournamentId: number, partnerId?: number) =>
+    http.post<Registration>('/registrations/', {
+      tournament: tournamentId,
+      partner: partnerId,
+    }),
 
   approve: (registrationId: number) =>
     http.post<Registration>(`/registrations/${registrationId}/approve/`, {}),
+
+  confirm: (registrationId: number) =>
+    http.post<Registration>(`/registrations/${registrationId}/confirm/`, {}),
 
   remove: (registrationId: number) =>
     http.delete(`/registrations/${registrationId}/`),

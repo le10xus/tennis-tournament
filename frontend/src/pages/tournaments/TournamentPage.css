@@ -70,6 +70,80 @@
   margin-bottom: 1.5rem;
 }
 
+.t-application__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.t-application__select {
+  min-width: 240px;
+  padding: 0.55rem 0.7rem;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.t-application__select:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-bg);
+}
+
+.t-declare {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* ── Пары в таблице участников: чередование + разделители ── */.participants-table--pairs tbody:nth-of-type(even) td {
+  background: var(--code-bg);
+}
+
+.participants-table--pairs tbody tr:first-child td {
+  border-top: 2px solid var(--border);
+}
+
+.participants-table--pairs tbody tr + tr td {
+  border-top: 1px dashed var(--border);
+}
+
+.participants-table--pairs tbody td:first-child {
+  border-left: 3px solid var(--accent-bg);
+}
+
+.participants-table--pairs tbody tr:hover td {
+  background: var(--accent-bg);
+}
+
+.seed-number {
+  display: inline-block;
+  min-width: 1.9rem;
+  padding: 0.1rem 0.4rem;
+  color: var(--text);
+  text-align: center;
+  border-radius: 999px;
+}
+
+.seed-number--seeded {
+  color: var(--accent);
+  background: var(--accent-bg);
+  font-weight: 700;
+}
+
+.seed-number--seeded::before {
+  content: '★';
+  margin-right: 0.2rem;
+  font-size: 0.7em;
+}
+
 /* ── Sections ── */
 .t-section {
   margin-bottom: 2.5rem;

@@ -1,0 +1,87 @@
+.player-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 280px;
+  flex: 1 1 280px;
+}
+
+.player-picker__input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.player-picker__input:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-bg);
+}
+
+.player-picker__hint {
+  margin: 0;
+  color: var(--text-secondary, #6b7280);
+  font-size: 0.8rem;
+}
+
+.player-picker__create {
+  align-self: flex-start;
+  padding: 0;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.player-picker__create:hover {
+  text-decoration: underline;
+}
+
+.player-picker__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.65rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.player-picker__field {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.player-picker__field:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-bg);
+}
+
+.player-picker__field--wide {
+  flex-basis: 100%;
+}
+
+.player-picker__actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-basis: 100%;
+}
+
+.player-picker__error {
+  flex-basis: 100%;
+  margin: 0;
+  color: #c53030;
+  font-size: 0.8rem;
+}

@@ -7,11 +7,14 @@ import './HomePage.css'
 const STATUS_BADGE: Record<string, string> = {
   draft: 'badge--gray',
   registration: 'badge--blue',
+  registration_closed: 'badge--yellow',
   in_progress: 'badge--green',
+  summing_up: 'badge--blue',
   finished: 'badge--neutral',
 }
 
 type GenderTab = 'male' | 'female'
+type DisciplineTab = 'singles' | 'doubles'
 
 export function HomePage() {
   const [nearestTournament, setNearestTournament] = useState<Tournament | null>(null)
@@ -22,34 +25,43 @@ export function HomePage() {
   const [playersLoading, setPlayersLoading] = useState(true)
 
   const [activeTab, setActiveTab] = useState<GenderTab>('male')
+  const [activeDiscipline, setActiveDiscipline] = useState<DisciplineTab>('singles')
 
   useEffect(() => {
     Promise.all([
       tournamentsApi.list({ status: 'registration', page_size: '50' }),
+      tournamentsApi.list({ status: 'registration_closed', page_size: '50' }),
       tournamentsApi.list({ status: 'in_progress', page_size: '50' }),
+      tournamentsApi.list({ status: 'summing_up', page_size: '50' }),
     ])
-      .then(([reg, inProgress]) => {
-        const all = [...reg.results, ...inProgress.results]
+      .then(([reg, closed, inProgress, summingUp]) => {
+        const all = [...reg.results, ...closed.results, ...inProgress.results, ...summingUp.results]
         const today = new Date().toISOString().slice(0, 10)
+        const activeStatuses = ['registration_closed', 'in_progress', 'summing_up']
         const upcoming = all
-          .filter(t => t.start_date >= today || t.status === 'in_progress')
+          .filter(t => t.start_date >= today || activeStatuses.includes(t.status))
           .sort((a, b) => a.start_date.localeCompare(b.start_date))
         setNearestTournament(upcoming[0] ?? null)
       })
       .finally(() => setTournamentLoading(false))
 
     Promise.all([
-      playersApi.list({ gender: 'male', page_size: '10' }),
-      playersApi.list({ gender: 'female', page_size: '10' }),
+      playersApi.list({ gender: 'male', page_size: '500' }),
+      playersApi.list({ gender: 'female', page_size: '500' }),
     ])
       .then(([male, female]) => {
-        setMalePlayers(male.results.slice(0, 10))
-        setFemalePlayers(female.results.slice(0, 10))
+        setMalePlayers(male.results)
+        setFemalePlayers(female.results)
       })
       .finally(() => setPlayersLoading(false))
   }, [])
 
-  const players = activeTab === 'male' ? malePlayers : femalePlayers
+  const disciplinePoints = (p: Player) =>
+    activeDiscipline === 'singles' ? p.points_singles : p.points_doubles
+  const players = (activeTab === 'male' ? malePlayers : femalePlayers)
+    .filter(disciplinePoints)
+    .sort((a, b) => disciplinePoints(b) - disciplinePoints(a))
+    .slice(0, 10)
 
   return (
     <div className="home-page">
@@ -127,6 +139,23 @@ export function HomePage() {
             </button>
           </div>
 
+          <div className="tab-bar tab-bar--discipline">
+            <button
+              type="button"
+              className={`tab-btn ${activeDiscipline === 'singles' ? 'tab-btn--active' : ''}`}
+              onClick={() => setActiveDiscipline('singles')}
+            >
+              Одиночный
+            </button>
+            <button
+              type="button"
+              className={`tab-btn ${activeDiscipline === 'doubles' ? 'tab-btn--active' : ''}`}
+              onClick={() => setActiveDiscipline('doubles')}
+            >
+              Парный
+            </button>
+          </div>
+
           {playersLoading && <p className="state-msg">Загрузка…</p>}
 
           {!playersLoading && players.length === 0 && (
@@ -141,7 +170,7 @@ export function HomePage() {
                   <Link to={`/players/${p.id}`} className="rating-list__name player-ref-link">
                     {p.last_name} {p.first_name}
                   </Link>
-                  <span className="rating-list__score">{p.rating}</span>
+                  <span className="rating-list__score">{disciplinePoints(p)}</span>
                 </li>
               ))}
             </ol>

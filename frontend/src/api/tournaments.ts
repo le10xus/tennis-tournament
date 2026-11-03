@@ -21,6 +21,9 @@ export const tournamentsApi = {
 
   generateBracket: (id: number) =>
     http.post<Match[]>(`/tournaments/${id}/generate_bracket/`, {}),
+
+  generateSchedule: (id: number) =>
+    http.post<Match[]>(`/tournaments/${id}/generate_schedule/`, {}),
 }
 
 // Re-export TournamentBrief usage for backward compatibility

@@ -16,6 +16,10 @@ __pycache__/
 backend/staticfiles/
 backend/media/
 
+# Локальный дамп базы (содержит персональные данные, в git не кладём)
+tennis_dump.sql
+*.dump
+
 # Node
 node_modules/
 frontend/dist/

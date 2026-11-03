@@ -1,8 +1,11 @@
 from collections import defaultdict
+from datetime import datetime, time, timedelta
 from math import ceil, log2
+import random
 
 from django.db import transaction
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, OuterRef, Q, Subquery, Sum
+from django.utils import timezone
 from rest_framework import status as http_status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -13,6 +16,54 @@ from core.permissions import RolePermission, TournamentRegistrationPermission
 from core.serializers import TournamentSerializer, TournamentRegistrationSerializer
 from core.serializers.match import MatchSerializer
 from core.serializers.tournament import registration_eligibility_error
+
+
+def tournament_rating(player, kind):
+    """Рейтинг игрока в контексте турнира: одиночный или парный разряд."""
+    return (
+        player.points_doubles
+        if kind == Tournament.Kind.DOUBLES
+        else player.points_singles
+    )
+
+
+def recalculate_seeds(tournament):
+    """Посев 1–4 получают сильнейшие участники.
+
+    В парном турнире рейтинг считается по паре: сумма парных очков обоих партнёров.
+    """
+    regs = list(
+        TournamentRegistration.objects
+        .filter(
+            tournament=tournament,
+            status=TournamentRegistration.Status.APPROVED,
+        )
+        .select_related("player")
+    )
+
+    if tournament.kind == Tournament.Kind.DOUBLES:
+        grouped = defaultdict(list)
+        for reg in regs:
+            key = reg.pair_id if reg.pair_id is not None else f"single-{reg.pk}"
+            grouped[key].append(reg)
+        groups = list(grouped.values())
+    else:
+        groups = [[reg] for reg in regs]
+
+    groups.sort(key=lambda group: (
+        -sum(tournament_rating(reg.player, tournament.kind) for reg in group),
+        min(reg.player.last_name for reg in group),
+    ))
+
+    changed = []
+    for index, group in enumerate(groups, start=1):
+        seed = index if index <= 4 else None
+        for reg in group:
+            if reg.seed != seed:
+                reg.seed = seed
+                changed.append(reg)
+    if changed:
+        TournamentRegistration.objects.bulk_update(changed, ["seed"])
 
 
 class TournamentViewSet(ModelViewSet):
@@ -47,6 +98,7 @@ class TournamentViewSet(ModelViewSet):
             return Response({"detail": "Недостаточно прав."}, status=403)
 
         tournament = self.get_object()
+        recalculate_seeds(tournament)
         regs = list(
             TournamentRegistration.objects
             .filter(
@@ -57,9 +109,32 @@ class TournamentViewSet(ModelViewSet):
             .order_by(F("seed").asc(nulls_last=True), "registered_at")
         )
 
+        if tournament.kind == Tournament.Kind.DOUBLES:
+            pair_counts = defaultdict(int)
+            for reg in regs:
+                if reg.pair_id is not None:
+                    pair_counts[reg.pair_id] += 1
+            if sum(1 for count in pair_counts.values() if count >= 2) < 2:
+                return Response(
+                    {"detail": "Нужно минимум 2 пары. Назначьте номера пар игрокам."},
+                    status=http_status.HTTP_400_BAD_REQUEST,
+                )
+        elif len(regs) < 2:
+            return Response(
+                {"detail": "Нужно минимум 2 игрока."},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+
         Match.objects.filter(tournament=tournament).delete()
 
-        if tournament.kind == Tournament.Kind.DOUBLES:
+        already_created = False
+        if tournament.format == Tournament.Format.DOUBLE_ELIM:
+            result = self._generate_double_elim(tournament, regs)
+            if isinstance(result, Response):
+                return result
+            matches = result
+            already_created = True
+        elif tournament.kind == Tournament.Kind.DOUBLES:
             result = self._generate_doubles(tournament, regs)
             if isinstance(result, Response):
                 return result
@@ -73,13 +148,87 @@ class TournamentViewSet(ModelViewSet):
             else:
                 matches = self._gen_single_elim(tournament, players)
 
-        Match.objects.bulk_create(matches)
+        if not already_created:
+            Match.objects.bulk_create(matches)
         qs = Match.objects.filter(tournament=tournament).select_related(
             "player1", "player2", "pair1_player2", "pair2_player2", "winner"
         )
         return Response(MatchSerializer(qs, many=True).data, status=http_status.HTTP_201_CREATED)
 
-    # ── Doubles ────────────────────────────────────────────────────────────────
+    @action(detail=True, methods=["post"], url_path="generate_schedule")
+    def generate_schedule(self, request, pk=None):
+        """Раскладывает матчи по кортам с учётом длительности матча турнира."""
+        user = request.user
+        if not (user.is_staff or getattr(user, "role", "player") == "organizer"):
+            return Response({"detail": "Недостаточно прав."}, status=403)
+
+        tournament = self.get_object()
+        matches = list(
+            Match.objects
+            .filter(tournament=tournament)
+            .exclude(status__in=[Match.Status.FINISHED, Match.Status.WALKOVER])
+        )
+        if not matches:
+            return Response({"detail": "Нет матчей для расписания."}, status=400)
+
+        order = {
+            (Match.Bracket.WINNERS, 1): 1,
+            (Match.Bracket.CONSOLATION, 1): 2,
+            (Match.Bracket.WINNERS, 2): 3,
+            (Match.Bracket.CONSOLATION, 2): 4,
+            (Match.Bracket.WINNERS, 3): 5,
+            (Match.Bracket.WINNERS, 4): 6,
+            (Match.Bracket.WINNERS, 5): 7,
+            (Match.Bracket.THIRD_PLACE, 1): 8,
+        }
+        matches.sort(key=lambda match: (
+            order.get((match.bracket, match.round_number), 99),
+            match.round_number,
+            match.slot_index,
+        ))
+
+        courts = max(tournament.courts or 1, 1)
+        duration = max(tournament.match_duration_minutes or 60, 15)
+        current_tz = timezone.get_current_timezone()
+        day_end_minutes = 21 * 60
+
+        def day_start(day_date):
+            if day_date.weekday() == 5:
+                return tournament.saturday_start_time or time(9, 0)
+            if day_date.weekday() == 6:
+                return tournament.sunday_start_time or time(9, 0)
+            return time(9, 0)
+
+        def slots_for(day_date):
+            start_time = day_start(day_date)
+            start_minutes = start_time.hour * 60 + start_time.minute
+            return max((day_end_minutes - start_minutes) // duration, 1)
+
+        day_index = 0
+        within = 0
+        for match in matches:
+            day_date = tournament.start_date + timedelta(days=day_index)
+            if within >= courts * slots_for(day_date):
+                day_index += 1
+                within = 0
+                day_date = tournament.start_date + timedelta(days=day_index)
+
+            start_time = day_start(day_date)
+            court = within % courts + 1
+            slot = within // courts
+            start = (
+                datetime.combine(day_date, start_time)
+                + timedelta(minutes=duration) * slot
+            )
+            match.scheduled_at = timezone.make_aware(start, current_tz)
+            match.court = court
+            within += 1
+
+        Match.objects.bulk_update(matches, ["scheduled_at", "court"])
+        qs = Match.objects.filter(tournament=tournament).select_related(
+            "player1", "player2", "pair1_player2", "pair2_player2", "winner"
+        )
+        return Response(MatchSerializer(qs, many=True).data)
 
     def _generate_doubles(self, tournament, regs):
         grouped = defaultdict(list)
@@ -158,6 +307,198 @@ class TournamentViewSet(ModelViewSet):
             ))
         return matches
 
+    # ── Сетка с подвалом ──────────────────────────────────────────────────────
+
+    def _generate_double_elim(self, tournament, regs):
+        """Сетка с подвалом на 16 участников (28 матчей):
+
+        1/8 — 8 матчей;
+        1/4 основной — 4 матча;
+        1/4 подвала (9–16) — 4 матча, проигравшие в 1/8;
+        1/4 подвала-2 (5–8) — 4 матча: победители подвала + проигравшие 1/4 основной;
+        1/4 основной-2 — 4 матча: победители 1/4 основной + победители подвала-2;
+        1/2 — 2, финал — 1, матч за 3-е место — 1.
+        """
+        if tournament.kind == Tournament.Kind.DOUBLES:
+            grouped = defaultdict(list)
+            for reg in regs:
+                if reg.pair_id is not None:
+                    grouped[reg.pair_id].append(reg)
+            pairs = []
+            for pair_regs in grouped.values():
+                if len(pair_regs) < 2:
+                    continue
+                seeds = [r.seed for r in pair_regs if r.seed is not None]
+                pairs.append((
+                    min(seeds) if seeds else 999,
+                    pair_regs[0].player,
+                    pair_regs[1].player,
+                ))
+            pairs.sort(key=lambda item: item[0])
+            participants = [(item[1], item[2]) for item in pairs]
+        else:
+            participants = [(reg.player, None) for reg in regs]
+
+        count = len(participants)
+        if count < 2:
+            return Response({"detail": "Нужно минимум 2 участника."}, status=400)
+
+        size = 2 ** ceil(log2(max(count, 4)))
+        if size != 16:
+            return self._generate_main_with_third(tournament, participants, size)
+
+        slots = self._seed_slots(participants, size)
+
+        def new_match(bracket, round_no, slot, group=""):
+            return Match(
+                tournament=tournament,
+                bracket=bracket,
+                group=group,
+                gender_type=tournament.gender_type,
+                round_number=round_no,
+                slot_index=slot,
+                status=Match.Status.SCHEDULED,
+            )
+
+        round_1_8 = [new_match(Match.Bracket.WINNERS, 1, i) for i in range(8)]
+        main_qf_1 = [new_match(Match.Bracket.WINNERS, 2, i) for i in range(4)]
+        base_qf_1 = [
+            new_match(Match.Bracket.CONSOLATION, 1, i, Match.Group.PLACES_9_16)
+            for i in range(4)
+        ]
+        base_qf_2 = [
+            new_match(Match.Bracket.CONSOLATION, 2, i, Match.Group.PLACES_5_8)
+            for i in range(4)
+        ]
+        main_qf_2 = [new_match(Match.Bracket.WINNERS, 3, i) for i in range(4)]
+        semis = [new_match(Match.Bracket.WINNERS, 4, i) for i in range(2)]
+        final = new_match(Match.Bracket.WINNERS, 5, 0)
+        third_place = new_match(Match.Bracket.THIRD_PLACE, 1, 0)
+
+        for i, match in enumerate(round_1_8):
+            first = slots[2 * i] if 2 * i < size else None
+            second = slots[2 * i + 1] if 2 * i + 1 < size else None
+            if first:
+                match.player1, match.pair1_player2 = first
+            if second:
+                match.player2, match.pair2_player2 = second
+
+        all_matches = (
+            round_1_8 + main_qf_1 + base_qf_1 + base_qf_2 + main_qf_2
+            + semis + [final, third_place]
+        )
+        Match.objects.bulk_create(all_matches)
+
+        for i, match in enumerate(round_1_8):
+            match.next_match = main_qf_1[i // 2]
+            match.next_slot = i % 2 + 1
+            match.loser_next_match = base_qf_1[i // 2]
+            match.loser_next_slot = i % 2 + 1
+
+        for i, match in enumerate(base_qf_1):
+            match.next_match = base_qf_2[i]
+            match.next_slot = 1
+
+        for i, match in enumerate(main_qf_1):
+            match.next_match = main_qf_2[i]
+            match.next_slot = 1
+            match.loser_next_match = base_qf_2[i]
+            match.loser_next_slot = 2
+
+        for i, match in enumerate(base_qf_2):
+            match.next_match = main_qf_2[i]
+            match.next_slot = 2
+
+        for i, match in enumerate(main_qf_2):
+            match.next_match = semis[i // 2]
+            match.next_slot = i % 2 + 1
+
+        for i, match in enumerate(semis):
+            match.next_match = final
+            match.next_slot = i + 1
+            match.loser_next_match = third_place
+            match.loser_next_slot = i + 1
+
+        Match.objects.bulk_update(
+            all_matches,
+            ["next_match", "next_slot", "loser_next_match", "loser_next_slot"],
+        )
+        return all_matches
+
+    @staticmethod
+    def _seed_slots(participants, size):
+        """Посев: 1 — вверх, 2 — вниз, 3 — вниз первой половины, 4 — вверх второй.
+
+        Остальные участники распределяются по свободным слотам случайно.
+        """
+        quarter = size // 4
+        positions = [0, size - 1, quarter * 2 - 1, quarter * 2]
+        slots = [None] * size
+        used = set()
+        for seed_index, participant in enumerate(participants[:4]):
+            index = positions[seed_index]
+            if index in used:
+                continue
+            slots[index] = participant
+            used.add(index)
+
+        remaining = list(participants[4:])
+        random.shuffle(remaining)
+        free = [index for index in range(size) if index not in used]
+        for index, participant in zip(free, remaining):
+            slots[index] = participant
+        return slots
+
+    def _generate_main_with_third(self, tournament, participants, size):
+        """Запасная схема для числа участников, отличного от 16: олимпийка + 3-е место."""
+
+        def new_match(bracket, round_no, slot):
+            return Match(
+                tournament=tournament,
+                bracket=bracket,
+                gender_type=tournament.gender_type,
+                round_number=round_no,
+                slot_index=slot,
+                status=Match.Status.SCHEDULED,
+            )
+
+        rounds = []
+        matches_in_round = size // 2
+        round_no = 1
+        while matches_in_round >= 1:
+            rounds.append([
+                new_match(Match.Bracket.WINNERS, round_no, i)
+                for i in range(matches_in_round)
+            ])
+            matches_in_round //= 2
+            round_no += 1
+
+        slots = self._seed_slots(participants, size)
+        for i, match in enumerate(rounds[0]):
+            if 2 * i < len(slots) and slots[2 * i]:
+                match.player1, match.pair1_player2 = slots[2 * i]
+            if 2 * i + 1 < len(slots) and slots[2 * i + 1]:
+                match.player2, match.pair2_player2 = slots[2 * i + 1]
+
+        third_place = new_match(Match.Bracket.THIRD_PLACE, 1, 0)
+
+        for index, round_matches in enumerate(rounds):
+            for i, match in enumerate(round_matches):
+                if index + 1 < len(rounds):
+                    match.next_match = rounds[index + 1][i // 2]
+                    match.next_slot = i % 2 + 1
+                if index == len(rounds) - 2:
+                    match.loser_next_match = third_place
+                    match.loser_next_slot = i + 1
+
+        all_matches = [match for rnd in rounds for match in rnd] + [third_place]
+        Match.objects.bulk_create(all_matches)
+        Match.objects.bulk_update(
+            all_matches,
+            ["next_match", "next_slot", "loser_next_match", "loser_next_slot"],
+        )
+        return all_matches
+
     # ── Singles ────────────────────────────────────────────────────────────────
 
     def _gen_round_robin(self, tournament, players):
@@ -232,74 +573,147 @@ class TournamentRegistrationViewSet(ModelViewSet):
                 visible |= Q(player_id=user.player_id)
             qs = qs.filter(visible)
 
+        tournament = None
         tournament_id = self.request.query_params.get("tournament")
         player_id = self.request.query_params.get("player")
         status_param = self.request.query_params.get("status")
         if tournament_id:
             qs = qs.filter(tournament_id=tournament_id)
+            tournament = Tournament.objects.filter(pk=tournament_id).first()
         if player_id:
             qs = qs.filter(player_id=player_id)
         if status_param:
             qs = qs.filter(status=status_param)
+
+        if tournament is not None and tournament.kind == Tournament.Kind.DOUBLES:
+            # в паре рейтинг общий: сумма парных очков обоих партнёров
+            pair_rating = (
+                TournamentRegistration.objects
+                .filter(
+                    tournament=OuterRef("tournament_id"),
+                    pair_id=OuterRef("pair_id"),
+                )
+                .values("pair_id")
+                .annotate(total=Sum("player__points_doubles"))
+                .values("total")
+            )
+            qs = qs.annotate(pair_rating=Subquery(pair_rating)).order_by(
+                F("pair_rating").desc(nulls_last=True),
+                F("seed").asc(nulls_last=True),
+                "pair_id",
+                "-player__points_doubles",
+            )
+        else:
+            qs = qs.order_by("-player__points_singles", "registered_at")
+
         return qs
 
     def perform_create(self, serializer):
-        user = self.request.user
-        is_player = (
-            not user.is_staff
-            and getattr(user, "role", "player") == "player"
-        )
-        serializer.save(
-            status=(
-                TournamentRegistration.Status.PENDING
-                if is_player
-                else TournamentRegistration.Status.APPROVED
-            )
-        )
+        registration = serializer.save()
+        recalculate_seeds(registration.tournament)
 
-    @action(detail=True, methods=["post"])
-    def approve(self, request, pk=None):
+    def perform_destroy(self, instance):
+        """Удаляет заявку; для парного турнира — всю пару целиком."""
+        tournament = instance.tournament
+        if instance.pair_id is not None:
+            TournamentRegistration.objects.filter(
+                tournament_id=instance.tournament_id,
+                pair_id=instance.pair_id,
+            ).delete()
+        else:
+            instance.delete()
+        recalculate_seeds(tournament)
+
+    def _approve(self, registration):
+        """Подтверждает заявку; для парного турнира — всю пару целиком."""
         with transaction.atomic():
-            registration = (
-                TournamentRegistration.objects
-                .select_for_update()
-                .select_related("player", "tournament")
-                .get(pk=self.get_object().pk)
-            )
             tournament = (
                 Tournament.objects
                 .select_for_update()
                 .get(pk=registration.tournament_id)
             )
+            registration = (
+                TournamentRegistration.objects
+                .select_for_update()
+                .select_related("player", "tournament")
+                .get(pk=registration.pk)
+            )
 
-            if registration.status == TournamentRegistration.Status.APPROVED:
+            if registration.pair_id is not None:
+                pending = list(
+                    TournamentRegistration.objects
+                    .select_for_update()
+                    .select_related("player")
+                    .filter(
+                        tournament=tournament,
+                        pair_id=registration.pair_id,
+                        status=TournamentRegistration.Status.PENDING,
+                    )
+                )
+            elif registration.status != TournamentRegistration.Status.APPROVED:
+                pending = [registration]
+            else:
+                pending = []
+
+            if not pending:
                 return Response(
                     self.get_serializer(registration).data,
                     status=http_status.HTTP_200_OK,
                 )
-            eligibility_error = registration_eligibility_error(
-                tournament, registration.player
-            )
-            if eligibility_error:
-                _, message = eligibility_error
-                return Response(
-                    {"detail": message},
-                    status=http_status.HTTP_400_BAD_REQUEST,
+
+            for reg in pending:
+                eligibility_error = registration_eligibility_error(
+                    tournament, reg.player, check_status=False
                 )
+                if eligibility_error:
+                    _, message = eligibility_error
+                    return Response(
+                        {"detail": message},
+                        status=http_status.HTTP_400_BAD_REQUEST,
+                    )
+
             approved_count = TournamentRegistration.objects.filter(
                 tournament=tournament,
                 status=TournamentRegistration.Status.APPROVED,
             ).count()
-            if approved_count >= tournament.max_players:
+            if approved_count + len(pending) > tournament.max_players:
                 return Response(
                     {"detail": "В турнире нет свободных мест."},
                     status=http_status.HTTP_400_BAD_REQUEST,
                 )
 
-            registration.status = TournamentRegistration.Status.APPROVED
-            registration.save(update_fields=["status"])
+            for reg in pending:
+                reg.status = TournamentRegistration.Status.APPROVED
+                reg.invited_by = None
+                reg.save(update_fields=["status", "invited_by"])
+
+            registration.refresh_from_db()
+            recalculate_seeds(tournament)
 
         return Response(
             self.get_serializer(registration).data,
             status=http_status.HTTP_200_OK,
         )
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        return self._approve(self.get_object())
+
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, pk=None):
+        """Игрок подтверждает приглашение в пару — пара уходит в approved."""
+        registration = self.get_object()
+        user = request.user
+        is_admin = user.is_staff or getattr(user, "role", "player") == "organizer"
+        if not is_admin:
+            if not user.player_id or user.player_id != registration.player_id:
+                return Response(
+                    {"detail": "Подтвердить участие может только сам игрок."},
+                    status=http_status.HTTP_403_FORBIDDEN,
+                )
+            if registration.invited_by_id is None:
+                return Response(
+                    {"detail": "Подтвердить можно только приглашение в пару."},
+                    status=http_status.HTTP_400_BAD_REQUEST,
+                )
+        return self._approve(registration)

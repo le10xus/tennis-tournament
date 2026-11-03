@@ -10,15 +10,19 @@ import './TournamentListPage.css'
 const STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },
   { value: 'draft', label: 'Черновик' },
-  { value: 'registration', label: 'Регистрация' },
-  { value: 'in_progress', label: 'Идёт' },
+  { value: 'registration', label: 'Регистрация открыта' },
+  { value: 'registration_closed', label: 'Регистрация закрыта' },
+  { value: 'in_progress', label: 'Турнир начался' },
+  { value: 'summing_up', label: 'Подводим итоги' },
   { value: 'finished', label: 'Завершён' },
 ]
 
 const STATUS_BADGE: Record<string, string> = {
   draft: 'badge--gray',
   registration: 'badge--blue',
+  registration_closed: 'badge--yellow',
   in_progress: 'badge--green',
+  summing_up: 'badge--blue',
   finished: 'badge--neutral',
 }
 

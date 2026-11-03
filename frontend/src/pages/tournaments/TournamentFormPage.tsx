@@ -22,6 +22,10 @@ const EMPTY: TournamentFormData = {
   location: '',
   description: '',
   max_players: 16,
+  courts: 4,
+  match_duration_minutes: 60,
+  saturday_start_time: '09:00',
+  sunday_start_time: '09:00',
   min_rating: null,
   max_rating: null,
 }
@@ -68,6 +72,10 @@ export function TournamentFormPage() {
           location: t.location,
           description: t.description,
           max_players: t.max_players,
+          courts: t.courts,
+          match_duration_minutes: t.match_duration_minutes,
+          saturday_start_time: (t.saturday_start_time || '09:00').slice(0, 5),
+          sunday_start_time: (t.sunday_start_time || '09:00').slice(0, 5),
           min_rating: t.min_rating,
           max_rating: t.max_rating,
         }))
@@ -108,9 +116,18 @@ export function TournamentFormPage() {
             id: player.id,
             first_name: player.first_name,
             last_name: player.last_name,
+            gender: player.gender,
             gender_display: player.gender_display,
             rating: player.rating,
             rating_type_display: player.rating_type_display,
+            birth_year: player.birth_year,
+            birth_date: player.birth_date,
+            city: player.city,
+            points_singles: player.points_singles,
+            points_doubles: player.points_doubles,
+            ntrp_singles: player.ntrp_singles,
+            ntrp_doubles: player.ntrp_doubles,
+            is_ftvo: player.is_ftvo,
           },
           status: 'approved',
           status_display: 'Подтверждена',
@@ -118,6 +135,8 @@ export function TournamentFormPage() {
           registered_at: '',
           seed: null,
           pair_id: null,
+          invited_by: null,
+          invited_by_detail: null,
         }])
       }
       setSelectedPlayerId('')
@@ -234,7 +253,9 @@ export function TournamentFormPage() {
           >
             <option value="draft">Черновик</option>
             <option value="registration">Регистрация открыта</option>
-            <option value="in_progress">Идёт</option>
+            <option value="registration_closed">Регистрация закрыта</option>
+            <option value="in_progress">Турнир начался</option>
+            <option value="summing_up">Подводим итоги</option>
             <option value="finished">Завершён</option>
           </FormField>
         </div>
@@ -257,6 +278,33 @@ export function TournamentFormPage() {
             value={form.max_players}
             onChange={e => set('max_players', Number(e.target.value))}
             error={errors.max_players}
+          />
+          <FormField
+            label="Кортов" type="number" min={1} max={20}
+            value={form.courts}
+            onChange={e => set('courts', Number(e.target.value))}
+            error={errors.courts}
+          />
+          <FormField
+            label="Матч, мин" type="number" min={15} max={240} step={5}
+            value={form.match_duration_minutes}
+            onChange={e => set('match_duration_minutes', Number(e.target.value))}
+            error={errors.match_duration_minutes}
+          />
+        </div>
+
+        <div className="form-row">
+          <FormField
+            label="Суббота, с" type="time"
+            value={form.saturday_start_time}
+            onChange={e => set('saturday_start_time', e.target.value)}
+            error={errors.saturday_start_time}
+          />
+          <FormField
+            label="Воскресенье, с" type="time"
+            value={form.sunday_start_time}
+            onChange={e => set('sunday_start_time', e.target.value)}
+            error={errors.sunday_start_time}
           />
         </div>
 

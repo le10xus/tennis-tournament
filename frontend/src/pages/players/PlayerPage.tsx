@@ -9,7 +9,9 @@ import './PlayerPage.css'
 const TOURNAMENT_STATUS_BADGE: Record<string, string> = {
   draft: 'badge--gray',
   registration: 'badge--blue',
+  registration_closed: 'badge--yellow',
   in_progress: 'badge--green',
+  summing_up: 'badge--blue',
   finished: 'badge--neutral',
 }
 
@@ -65,7 +67,17 @@ export function PlayerPage() {
       <div className="player-card">
         <div className="player-card__grid">
           <InfoRow label="Пол" value={player.gender_display} />
-          <InfoRow label="Рейтинг" value={`${player.rating} (${player.rating_type_display})`} />
+          {player.city && <InfoRow label="Город" value={player.city} />}
+          <InfoRow
+            label="Очки · одиночный"
+            value={player.points_singles ? String(player.points_singles) : '—'}
+          />
+          <InfoRow label="NTRP · одиночный" value={player.ntrp_singles || '—'} />
+          <InfoRow
+            label="Очки · парный"
+            value={player.points_doubles ? String(player.points_doubles) : '—'}
+          />
+          <InfoRow label="NTRP · парный" value={player.ntrp_doubles || '—'} />
           {player.email && <InfoRow label="Email" value={player.email} />}
           {player.phone && <InfoRow label="Телефон" value={player.phone} />}
           {player.birth_date && (
@@ -73,6 +85,9 @@ export function PlayerPage() {
               label="Дата рождения"
               value={new Date(player.birth_date).toLocaleDateString('ru-RU')}
             />
+          )}
+          {!player.birth_date && player.birth_year && (
+            <InfoRow label="Год рождения" value={String(player.birth_year)} />
           )}
         </div>
       </div>

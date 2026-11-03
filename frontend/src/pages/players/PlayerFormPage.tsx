@@ -10,10 +10,15 @@ const EMPTY: PlayerFormData = {
   last_name: '',
   email: '',
   phone: '',
-  birth_date: '',
+  birth_date: null,
   gender: 'male',
   rating: 1000,
   rating_type: 'elo',
+  city: '',
+  ntrp_singles: '',
+  ntrp_doubles: '',
+  points_singles: 0,
+  points_doubles: 0,
 }
 
 export function PlayerFormPage() {
@@ -34,10 +39,15 @@ export function PlayerFormPage() {
         last_name: p.last_name,
         email: p.email,
         phone: p.phone,
-        birth_date: p.birth_date ?? '',
+        birth_date: p.birth_date ?? null,
         gender: p.gender,
         rating: p.rating,
         rating_type: p.rating_type,
+        city: p.city,
+        ntrp_singles: p.ntrp_singles,
+        ntrp_doubles: p.ntrp_doubles,
+        points_singles: p.points_singles,
+        points_doubles: p.points_doubles,
       }))
       .catch(() => navigate('/players'))
       .finally(() => setLoading(false))
@@ -53,11 +63,11 @@ export function PlayerFormPage() {
     setSaving(true)
     setErrors({})
     try {
-      const payload = { ...form, birth_date: (form.birth_date || null) as unknown as string }
+      const payload = { ...form }
       if (isEdit) {
         await playersApi.update(Number(id), payload)
       } else {
-        await playersApi.create({ ...form, birth_date: form.birth_date || '' })
+        await playersApi.create(payload)
       }
       navigate('/players')
     } catch (err: unknown) {
@@ -108,7 +118,7 @@ export function PlayerFormPage() {
           />
           <FormField
             label="Дата рождения" type="date"
-            value={form.birth_date}
+            value={form.birth_date ?? ''}
             onChange={e => set('birth_date', e.target.value)}
             error={errors.birth_date}
           />
@@ -138,6 +148,44 @@ export function PlayerFormPage() {
             value={form.rating}
             onChange={e => set('rating', Number(e.target.value))}
             error={errors.rating}
+          />
+        </div>
+
+        <div className="form-row">
+          <FormField
+            label="Город"
+            value={form.city}
+            onChange={e => set('city', e.target.value)}
+            error={errors.city}
+          />
+          <FormField
+            label="NTRP (одиночный)"
+            value={form.ntrp_singles}
+            onChange={e => set('ntrp_singles', e.target.value)}
+            error={errors.ntrp_singles}
+            placeholder="3.70 или 4+"
+          />
+          <FormField
+            label="NTRP (парный)"
+            value={form.ntrp_doubles}
+            onChange={e => set('ntrp_doubles', e.target.value)}
+            error={errors.ntrp_doubles}
+            placeholder="3.70 или 4+"
+          />
+        </div>
+
+        <div className="form-row">
+          <FormField
+            label="Очки (одиночный)" type="number" min={0}
+            value={form.points_singles}
+            onChange={e => set('points_singles', Number(e.target.value))}
+            error={errors.points_singles}
+          />
+          <FormField
+            label="Очки (парный)" type="number" min={0}
+            value={form.points_doubles}
+            onChange={e => set('points_doubles', Number(e.target.value))}
+            error={errors.points_doubles}
           />
         </div>
 

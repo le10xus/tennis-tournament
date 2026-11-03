@@ -24,7 +24,7 @@ class RolePermission(BasePermission):
 
 
 class TournamentRegistrationPermission(BasePermission):
-    """Игрок подаёт заявку, organizer/staff управляют регистрациями."""
+    """Игрок подаёт заявку и подтверждает приглашение, organizer/staff управляют регистрациями."""
     message = "У вас недостаточно прав для выполнения этого действия."
 
     def has_permission(self, request, view):
@@ -36,10 +36,8 @@ class TournamentRegistrationPermission(BasePermission):
             return True
 
         role = getattr(request.user, "role", "player")
-        if request.method == "POST" and view.action == "create":
+        if request.method == "POST" and view.action in {"create", "confirm"}:
             return role in {"player", "organizer"}
-        if request.method == "DELETE":
-            return False
         return role == "organizer"
 
 
