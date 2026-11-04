@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { matchesApi, playersApi, tournamentsApi } from '../../api'
+import { matchesApi, playersApi, registrationsApi, tournamentsApi } from '../../api'
 import { FormField } from '../../components/FormField'
 import { CATEGORIES } from '../../utils/categories'
+import type { Registration } from '../../api/registrations'
 import type { MatchApiErrors, MatchFormData, Player, Tournament } from '../../types'
 import { playerName } from './matchUtils'
 
@@ -23,6 +24,14 @@ const EMPTY: MatchFormData = {
 
 const FINISHED_STATUSES = new Set(['finished', 'walkover'])
 
+// datetime-local должен получать локальное время, иначе при сохранении сдвиг на часовой пояс
+function toLocalInput(value: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export function MatchFormPage() {
   const { id } = useParams()
   const isEdit = Boolean(id)
@@ -35,10 +44,11 @@ export function MatchFormPage() {
 
   const [players, setPlayers] = useState<Player[]>([])
   const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [registrations, setRegistrations] = useState<Registration[]>([])
 
   useEffect(() => {
     const loadRef = Promise.all([
-      playersApi.list({ page_size: '200' }).then(d => setPlayers(d.results)),
+      playersApi.list({ page_size: '500' }).then(d => setPlayers(d.results)),
       tournamentsApi.list({ page_size: '200' }).then(d => setTournaments(d.results)),
     ])
 
@@ -55,9 +65,7 @@ export function MatchFormPage() {
           status: m.status,
           round_number: m.round_number,
           court: m.court,
-          scheduled_at: m.scheduled_at
-            ? new Date(m.scheduled_at).toISOString().slice(0, 16)
-            : '',
+          scheduled_at: toLocalInput(m.scheduled_at),
           score: m.score,
         }))
         .catch(() => navigate('/matches'))
@@ -91,9 +99,78 @@ export function MatchFormPage() {
     setErrors(prev => ({ ...prev, [field]: undefined }))
   }
 
+  useEffect(() => {
+    const tournamentId = form.tournament === '' ? 0 : form.tournament
+    if (!tournamentId) {
+      setRegistrations([])
+      return
+    }
+    registrationsApi.listForTournament(tournamentId, 'approved')
+      .then(data => setRegistrations(data.results))
+      .catch(() => setRegistrations([]))
+  }, [form.tournament])
+
   const selectedTournament = tournaments.find(t => t.id === form.tournament)
   const isDoubles = selectedTournament?.kind === 'doubles'
   const showResult = FINISHED_STATUSES.has(form.status)
+
+  // пары турнира — для выбора пары целиком, а не двух игроков по отдельности
+  const pairs = useMemo(() => {
+    const grouped = new Map<number, Registration[]>()
+    registrations.forEach(reg => {
+      if (reg.pair_id === null) return
+      const list = grouped.get(reg.pair_id) ?? []
+      list.push(reg)
+      grouped.set(reg.pair_id, list)
+    })
+    return [...grouped.entries()]
+      .filter(([, regs]) => regs.length >= 2)
+      .sort((a, b) => a[0] - b[0])
+      .map(([pairId, regs]) => ({
+        pairId,
+        players: [regs[0].player, regs[1].player] as [number, number],
+        label: `${regs[0].player_detail.last_name} / ${regs[1].player_detail.last_name}`,
+      }))
+  }, [registrations])
+
+  const pair1Id = pairs.find(pair => (
+    Boolean(form.player1 && form.pair1_player2) && (
+      (pair.players[0] === form.player1 && pair.players[1] === form.pair1_player2) ||
+      (pair.players[0] === form.pair1_player2 && pair.players[1] === form.player1)
+    )
+  ))?.pairId ?? ''
+
+  const pair2Id = pairs.find(pair => (
+    Boolean(form.player2 && form.pair2_player2) && (
+      (pair.players[0] === form.player2 && pair.players[1] === form.pair2_player2) ||
+      (pair.players[0] === form.pair2_player2 && pair.players[1] === form.player2)
+    )
+  ))?.pairId ?? ''
+
+  function selectPair(side: 1 | 2, value: string) {
+    const pair = pairs.find(item => item.pairId === Number(value))
+    setForm(prev => {
+      const next = { ...prev }
+      if (side === 1) {
+        next.player1 = pair ? pair.players[0] : ''
+        next.pair1_player2 = pair ? pair.players[1] : ''
+      } else {
+        next.player2 = pair ? pair.players[0] : ''
+        next.pair2_player2 = pair ? pair.players[1] : ''
+      }
+      if (next.winner !== null && next.winner !== next.player1 && next.winner !== next.player2) {
+        next.winner = null
+      }
+      return next
+    })
+    setErrors(prev => ({
+      ...prev,
+      player1: undefined,
+      pair1_player2: undefined,
+      player2: undefined,
+      pair2_player2: undefined,
+    }))
+  }
 
   // для winners: только капитаны (player1 и player2)
   const p1 = players.find(p => p.id === form.player1)
@@ -236,51 +313,46 @@ export function MatchFormPage() {
         {/* ── Парный: 2 пары ─────────────────────────────────────────────── */}
         {isDoubles && (
           <>
-            <fieldset className="pair-fieldset">
-              <legend className="pair-legend">Пара 1</legend>
-              <div className="form-row">
-                <FormField as="select" label="Игрок 1" required
-                  value={String(form.player1)}
-                  onChange={e => set('player1', Number(e.target.value) || '')}
-                  error={errors.player1}
-                >
-                  <option value="">— выбрать —</option>
-                  {playerOptions(form.player1)}
-                </FormField>
+            <div className="form-row">
+              <FormField as="select" label="Пара 1" required
+                value={String(pair1Id)}
+                onChange={e => selectPair(1, e.target.value)}
+                error={errors.player1 ?? errors.pair1_player2}
+              >
+                <option value="">— выбрать —</option>
+                {pairs.map(pair => (
+                  <option
+                    key={pair.pairId}
+                    value={pair.pairId}
+                    disabled={pair.pairId === pair2Id}
+                  >
+                    {pair.label}
+                  </option>
+                ))}
+              </FormField>
 
-                <FormField as="select" label="Игрок 2" required
-                  value={String(form.pair1_player2)}
-                  onChange={e => set('pair1_player2', Number(e.target.value) || '')}
-                  error={errors.pair1_player2}
-                >
-                  <option value="">— выбрать —</option>
-                  {playerOptions(form.pair1_player2)}
-                </FormField>
-              </div>
-            </fieldset>
-
-            <fieldset className="pair-fieldset">
-              <legend className="pair-legend">Пара 2</legend>
-              <div className="form-row">
-                <FormField as="select" label="Игрок 1" required
-                  value={String(form.player2)}
-                  onChange={e => set('player2', Number(e.target.value) || '')}
-                  error={errors.player2}
-                >
-                  <option value="">— выбрать —</option>
-                  {playerOptions(form.player2)}
-                </FormField>
-
-                <FormField as="select" label="Игрок 2" required
-                  value={String(form.pair2_player2)}
-                  onChange={e => set('pair2_player2', Number(e.target.value) || '')}
-                  error={errors.pair2_player2}
-                >
-                  <option value="">— выбрать —</option>
-                  {playerOptions(form.pair2_player2)}
-                </FormField>
-              </div>
-            </fieldset>
+              <FormField as="select" label="Пара 2" required
+                value={String(pair2Id)}
+                onChange={e => selectPair(2, e.target.value)}
+                error={errors.player2 ?? errors.pair2_player2}
+              >
+                <option value="">— выбрать —</option>
+                {pairs.map(pair => (
+                  <option
+                    key={pair.pairId}
+                    value={pair.pairId}
+                    disabled={pair.pairId === pair1Id}
+                  >
+                    {pair.label}
+                  </option>
+                ))}
+              </FormField>
+            </div>
+            {pairs.length === 0 && (
+              <p className="seed-hint">
+                В турнире нет пар — сначала распределите игроков по парам на странице турнира.
+              </p>
+            )}
           </>
         )}
 
