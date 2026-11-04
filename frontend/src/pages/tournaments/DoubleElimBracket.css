@@ -121,6 +121,7 @@
 }
 
 .de-match__name {
+  flex: 1 1 auto;
   min-width: 0;
   color: var(--text-h);
   overflow: hidden;
@@ -148,6 +149,27 @@
   color: var(--text);
   font-size: 0.75rem;
   white-space: nowrap;
+}
+
+.de-match__points {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+  padding-left: 0.5rem;
+  color: var(--text-h);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.de-match__points span {
+  min-width: 0.85rem;
+  text-align: right;
+}
+
+.de-match__row--win .de-match__points {
+  color: var(--accent);
 }
 
 .de-match__score {

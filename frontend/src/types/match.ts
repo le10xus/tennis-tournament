@@ -40,6 +40,12 @@ export interface Match {
   court: number | null
   scheduled_at: string | null
   score: string
+  set1_home: number | null
+  set1_away: number | null
+  set2_home: number | null
+  set2_away: number | null
+  set3_home: number | null
+  set3_away: number | null
 }
 
 export interface MatchFormData {
@@ -56,6 +62,12 @@ export interface MatchFormData {
   court?: number | null
   scheduled_at: string | null
   score: string
+  set1_home: number | null
+  set1_away: number | null
+  set2_home: number | null
+  set2_away: number | null
+  set3_home: number | null
+  set3_away: number | null
 }
 
 export type MatchApiErrors = Partial<Record<keyof MatchFormData | 'non_field_errors', string[]>>

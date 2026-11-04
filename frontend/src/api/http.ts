@@ -26,6 +26,10 @@ function buildHeaders(init?: RequestInit): HeadersInit {
   return headers
 }
 
+function withAccess(headers: HeadersInit, access: string): Record<string, string> {
+  return { ...(headers as Record<string, string>), Authorization: `Bearer ${access}` }
+}
+
 let refreshPromise: Promise<string | null> | null = null
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -52,14 +56,28 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 async function request<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: buildHeaders(init),
-  })
+  return perform<T>(path, init, retried, buildHeaders(init))
+}
+
+async function requestForm<T>(path: string, form: FormData, retried = false): Promise<T> {
+  // Content-Type не ставим: браузер сам добавит multipart с boundary
+  const headers: Record<string, string> = {}
+  const access = tokenStorage.getAccess()
+  if (access) headers['Authorization'] = `Bearer ${access}`
+  return perform<T>(path, { method: 'POST', body: form }, retried, headers)
+}
+
+async function perform<T>(
+  path: string,
+  init: RequestInit | undefined,
+  retried: boolean,
+  headers: HeadersInit,
+): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, { ...init, headers })
 
   if (res.status === 401 && !retried && !path.startsWith('/auth/token')) {
     const newAccess = await refreshAccessToken()
-    if (newAccess) return request<T>(path, init, true)
+    if (newAccess) return perform<T>(path, init, true, withAccess(headers, newAccess))
     tokenStorage.clear()
     window.dispatchEvent(new Event('auth:logout'))
   }
@@ -78,4 +96,5 @@ export const http = {
   post: <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path: string) => request<void>(path, { method: 'DELETE' }),
+  postForm: <T>(path: string, form: FormData) => requestForm<T>(path, form),
 }

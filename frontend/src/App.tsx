@@ -11,6 +11,7 @@ import { TournamentListPage } from './pages/tournaments/TournamentListPage'
 import { TournamentPage } from './pages/tournaments/TournamentPage'
 import { TournamentFormPage } from './pages/tournaments/TournamentFormPage'
 import { TournamentBracketPage } from './pages/tournaments/TournamentBracketPage'
+import { SummaryPage } from './pages/tournaments/SummaryPage'
 import { UserListPage } from './pages/users/UserListPage'
 import { UserFormPage } from './pages/users/UserFormPage'
 import { AuthProvider } from './auth/AuthContext'
@@ -40,6 +41,7 @@ export default function App() {
               <Route index element={<TournamentListPage />} />
               <Route path=":id" element={<TournamentPage />} />
               <Route path=":id/bracket" element={<TournamentBracketPage />} />
+              <Route path=":id/summary" element={<SummaryPage />} />
               <Route element={<RequireEdit />}>
                 <Route path="new" element={<TournamentFormPage />} />
                 <Route path=":id/edit" element={<TournamentFormPage />} />

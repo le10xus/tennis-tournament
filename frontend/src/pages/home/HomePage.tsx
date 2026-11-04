@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { playersApi, tournamentsApi } from '../../api'
-import type { Player, Tournament } from '../../types'
+import type { Player, TournamentListItem } from '../../types'
 import './HomePage.css'
 
 const STATUS_BADGE: Record<string, string> = {
@@ -17,7 +17,7 @@ type GenderTab = 'male' | 'female'
 type DisciplineTab = 'singles' | 'doubles'
 
 export function HomePage() {
-  const [nearestTournament, setNearestTournament] = useState<Tournament | null>(null)
+  const [nearestTournament, setNearestTournament] = useState<TournamentListItem | null>(null)
   const [tournamentLoading, setTournamentLoading] = useState(true)
 
   const [malePlayers, setMalePlayers] = useState<Player[]>([])

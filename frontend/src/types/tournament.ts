@@ -1,3 +1,20 @@
+import type { PlayerBrief } from './match'
+
+export interface TournamentPhoto {
+  id: number
+  image: string
+  caption: string
+  order: number
+}
+
+export interface TournamentPointsAward {
+  id: number
+  player: number
+  player_detail: PlayerBrief
+  place: string
+  points: number
+}
+
 export interface Tournament {
   id: number
   name: string
@@ -18,11 +35,27 @@ export interface Tournament {
   match_duration_minutes: number
   saturday_start_time: string
   sunday_start_time: string
+  set_games: number
+  third_set_super_tiebreak: boolean
+  regulation: string | null
+  summary_text: string
+  photos: TournamentPhoto[]
+  points_category: string
+  points_category_display: string
+  points_awarded_at: string | null
+  points_awards: TournamentPointsAward[]
+  age_min: number | null
+  pair_age_sum_min: number | null
   min_rating: number | null
   max_rating: number | null
   players_count: number
   created_at: string
 }
+
+export type TournamentListItem = Omit<
+  Tournament,
+  'summary_text' | 'regulation' | 'photos' | 'points_awarded_at' | 'points_awards'
+>
 
 export interface TournamentBrief {
   id: number
@@ -49,6 +82,12 @@ export interface TournamentFormData {
   match_duration_minutes: number
   saturday_start_time: string
   sunday_start_time: string
+  set_games: number
+  third_set_super_tiebreak: boolean
+  summary_text?: string
+  points_category?: string
+  age_min: number | null
+  pair_age_sum_min: number | null
   min_rating: number | null
   max_rating: number | null
 }

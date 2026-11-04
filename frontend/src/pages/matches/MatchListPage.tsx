@@ -5,7 +5,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { DeleteTableAction } from '../../components/TableActionIcon'
 import { CATEGORIES, categoryLabel } from '../../utils/categories'
 import type { Match, TournamentBrief } from '../../types'
-import { statusBadge, playerName } from './matchUtils'
+import { playerName } from './matchUtils'
 
 export function MatchListPage() {
   const { canEdit, canDelete } = useAuth()
@@ -17,7 +17,6 @@ export function MatchListPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const [filterTournament, setFilterTournament] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
 
   useEffect(() => {
@@ -30,7 +29,6 @@ export function MatchListPage() {
     setLoading(true)
     const params: Record<string, string> = {}
     if (filterTournament) params.tournament = filterTournament
-    if (filterStatus) params.status = filterStatus
     if (filterCategory) {
       const cat = CATEGORIES.find(c => c.value === filterCategory)
       if (cat) { params.kind = cat.kind; params.gender_type = cat.gender }
@@ -40,7 +38,7 @@ export function MatchListPage() {
       .then(d => { setMatches(d.results); setTotal(d.count) })
       .catch(() => setError('Не удалось загрузить матчи.'))
       .finally(() => setLoading(false))
-  }, [filterTournament, filterStatus, filterCategory])
+  }, [filterTournament, filterCategory])
 
   async function handleDelete(match: Match) {
     const label = `${playerName(match.player1_detail)} vs ${playerName(match.player2_detail)}`
@@ -81,17 +79,6 @@ export function MatchListPage() {
 
         <select
           className="filter-select"
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
-        >
-          <option value="">Все статусы</option>
-          <option value="scheduled">Запланирован</option>
-          <option value="in_progress">Идёт</option>
-          <option value="finished">Завершён</option>
-          <option value="walkover">Тех. поражение</option>
-        </select>
-        <select
-          className="filter-select"
           value={filterCategory}
           onChange={e => setFilterCategory(e.target.value)}
         >
@@ -120,7 +107,6 @@ export function MatchListPage() {
                 <th>Победитель</th>
                 <th>Счёт</th>
                 <th>Категория</th>
-                <th>Статус</th>
                 <th>Дата</th>
                 <th></th>
               </tr>
@@ -137,11 +123,6 @@ export function MatchListPage() {
                   <td>{m.winner_detail ? playerName(m.winner_detail) : '—'}</td>
                   <td className="col-secondary">{m.score || '—'}</td>
                   <td className="col-secondary">{categoryLabel(m.kind, m.gender_type)}</td>
-                  <td>
-                    <span className={`badge ${statusBadge(m.status)}`}>
-                      {m.status_display}
-                    </span>
-                  </td>
                   <td className="col-secondary">
                     {m.scheduled_at
                       ? new Date(m.scheduled_at).toLocaleDateString('ru-RU')

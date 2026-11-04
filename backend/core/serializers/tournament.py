@@ -1,9 +1,33 @@
+from collections import defaultdict
+
 from django.db import transaction
 from django.db.models import Max
 from rest_framework import serializers
 
-from core.models import Player, Tournament, TournamentRegistration
+from core.models import (
+    Player,
+    Tournament,
+    TournamentPhoto,
+    TournamentPointsAward,
+    TournamentRegistration,
+)
+from .match import PlayerBriefSerializer
 from .player import PlayerSerializer
+from core.services.age import age_check
+
+
+class TournamentPhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TournamentPhoto
+        fields = ["id", "image", "caption", "order"]
+
+
+class TournamentPointsAwardSerializer(serializers.ModelSerializer):
+    player_detail = PlayerBriefSerializer(source="player", read_only=True)
+
+    class Meta:
+        model = TournamentPointsAward
+        fields = ["id", "player", "player_detail", "place", "points"]
 
 
 def registration_eligibility_error(tournament, player, check_status=True):
@@ -42,6 +66,11 @@ class TournamentSerializer(serializers.ModelSerializer):
     format_display = serializers.CharField(source="get_format_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     players_count = serializers.IntegerField(read_only=True)
+    photos = TournamentPhotoSerializer(many=True, read_only=True)
+    points_category_display = serializers.CharField(
+        source="get_points_category_display", read_only=True
+    )
+    points_awards = TournamentPointsAwardSerializer(many=True, read_only=True)
 
     class Meta:
         model = Tournament
@@ -55,9 +84,14 @@ class TournamentSerializer(serializers.ModelSerializer):
             "max_players", "min_rating", "max_rating", "players_count",
             "courts", "match_duration_minutes",
             "saturday_start_time", "sunday_start_time",
+            "set_games", "third_set_super_tiebreak",
+            "regulation", "summary_text", "photos",
+            "points_category", "points_category_display",
+            "points_awarded_at", "points_awards",
+            "age_min", "pair_age_sum_min",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "points_awarded_at"]
 
     def validate(self, data):
         start = data.get("start_date", getattr(self.instance, "start_date", None))
@@ -75,6 +109,38 @@ class TournamentSerializer(serializers.ModelSerializer):
                 {"max_rating": "Максимальный рейтинг не может быть меньше минимального."}
             )
         return data
+
+
+class TournamentListSerializer(serializers.ModelSerializer):
+    """Облегчённое представление для списков: без фото, итогов и наград."""
+
+    kind_display = serializers.CharField(source="get_kind_display", read_only=True)
+    gender_type_display = serializers.CharField(source="get_gender_type_display", read_only=True)
+    format_display = serializers.CharField(source="get_format_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    points_category_display = serializers.CharField(
+        source="get_points_category_display", read_only=True
+    )
+    players_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Tournament
+        fields = [
+            "id", "name",
+            "kind", "kind_display",
+            "gender_type", "gender_type_display",
+            "format", "format_display",
+            "status", "status_display",
+            "start_date", "end_date", "location", "description",
+            "max_players", "min_rating", "max_rating", "players_count",
+            "courts", "match_duration_minutes",
+            "saturday_start_time", "sunday_start_time",
+            "set_games", "third_set_super_tiebreak",
+            "points_category", "points_category_display",
+            "age_min", "pair_age_sum_min",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class TournamentNestedSerializer(serializers.ModelSerializer):
@@ -101,6 +167,7 @@ class TournamentRegistrationSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     is_current_user = serializers.SerializerMethodField()
     invited_by_detail = PlayerSerializer(source="invited_by", read_only=True)
+    age_ok = serializers.SerializerMethodField()
     # только для записи: заявка сразу на пару (игрок + партнёр)
     partner = serializers.PrimaryKeyRelatedField(
         queryset=Player.objects.all(),
@@ -116,6 +183,7 @@ class TournamentRegistrationSerializer(serializers.ModelSerializer):
             "status", "status_display", "is_current_user",
             "registered_at", "seed", "pair_id",
             "invited_by", "invited_by_detail",
+            "wildcard", "age_ok",
             "partner",
         ]
         read_only_fields = ["id", "status", "registered_at", "invited_by"]
@@ -128,6 +196,38 @@ class TournamentRegistrationSerializer(serializers.ModelSerializer):
             and request.user.is_authenticated
             and request.user.player_id == obj.player_id
         )
+
+    def _players_for_age(self, obj):
+        tournament = obj.tournament
+        if not tournament.age_min and not tournament.pair_age_sum_min:
+            return None
+
+        if obj.pair_id is None:
+            return [obj.player]
+
+        cache = getattr(self, "_pair_players_cache", None)
+        if cache is None:
+            cache = {}
+            self._pair_players_cache = cache
+        if obj.tournament_id not in cache:
+            grouped = defaultdict(list)
+            regs = (
+                TournamentRegistration.objects
+                .filter(tournament_id=obj.tournament_id)
+                .select_related("player")
+            )
+            for reg in regs:
+                if reg.pair_id is not None:
+                    grouped[reg.pair_id].append(reg.player)
+            cache[obj.tournament_id] = grouped
+        return cache[obj.tournament_id].get(obj.pair_id, [obj.player])
+
+    def get_age_ok(self, obj):
+        players = self._players_for_age(obj)
+        if players is None:
+            return True
+        ok, _ = age_check(obj.tournament, players)
+        return ok
 
     def validate(self, data):
         if self.instance:
@@ -223,6 +323,19 @@ class TournamentRegistrationSerializer(serializers.ModelSerializer):
             if getattr(self, "_is_player_actor", False)
             else TournamentRegistration.Status.APPROVED
         )
+        wildcard = (
+            False
+            if getattr(self, "_is_player_actor", False)
+            else bool(validated_data.get("wildcard", False))
+        )
+        if status == TournamentRegistration.Status.APPROVED:
+            # админ заявляет участника сам — возрастной ценз он может обойти через WC
+            ok, _ = age_check(
+                tournament, [player] + ([partner] if partner else [])
+            )
+            if not ok:
+                wildcard = True
+        validated_data["wildcard"] = wildcard
 
         with transaction.atomic():
             if partner:
@@ -242,6 +355,7 @@ class TournamentRegistrationSerializer(serializers.ModelSerializer):
                     player=partner,
                     status=status,
                     pair_id=pair_id,
+                    wildcard=wildcard,
                     invited_by=player if status == TournamentRegistration.Status.PENDING else None,
                 )
 

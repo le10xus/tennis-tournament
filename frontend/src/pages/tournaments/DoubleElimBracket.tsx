@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { Match, PlayerBrief } from '../../types'
 import type { Registration } from '../../api/registrations'
-import { statusBadge } from '../matches/matchUtils'
 import './DoubleElimBracket.css'
 
 interface DoubleElimBracketProps {
@@ -154,6 +153,39 @@ function sideName(
   return `${captain.last_name} ${captain.first_name}`
 }
 
+function setScores(match: Match): { home: string[]; away: string[] } {
+  const pairs = [
+    [match.set1_home, match.set1_away],
+    [match.set2_home, match.set2_away],
+    [match.set3_home, match.set3_away],
+  ].filter(([home, away]) => home !== null && away !== null) as [number, number][]
+
+  if (pairs.length > 0) {
+    return {
+      home: pairs.map(([home]) => String(home)),
+      away: pairs.map(([, away]) => String(away)),
+    }
+  }
+
+  // старые матчи: счёт хранится строкой «6:3 6:2»
+  const parsed = match.score
+    ? match.score.split(/\s+/).map(part => part.split(':')).filter(part => part.length === 2)
+    : []
+  return {
+    home: parsed.map(([home]) => home),
+    away: parsed.map(([, away]) => away),
+  }
+}
+
+function ScoreCells({ values }: { values: string[] }) {
+  if (!values.length) return null
+  return (
+    <span className="de-match__points">
+      {values.map((value, index) => <span key={index}>{value}</span>)}
+    </span>
+  )
+}
+
 function MatchCard({
   match,
   isDoubles,
@@ -181,6 +213,7 @@ function MatchCard({
     ? (match.winner === match.player1 ? 1 : match.winner === match.player2 ? 2 : 0)
     : 0
   const when = formatWhen(match.scheduled_at)
+  const scores = setScores(match)
 
   return (
     <div className={`de-match${highlight ? ' de-match--final' : ''}`}>
@@ -190,6 +223,7 @@ function MatchCard({
           <span className={`de-match__name${!side1 ? ' de-match__name--tbd' : ''}`} title={side1}>
             {side1 || '—'}
           </span>
+          <ScoreCells values={scores.home} />
         </div>
         <div className={`de-match__row${winnerSide === 2 ? ' de-match__row--win' : ''}`}>
           {secondNumber !== undefined && (
@@ -201,6 +235,7 @@ function MatchCard({
           <span className={`de-match__name${!side2 ? ' de-match__name--tbd' : ''}`} title={side2}>
             {side2 || '—'}
           </span>
+          <ScoreCells values={scores.away} />
         </div>
       </div>
 
@@ -209,12 +244,6 @@ function MatchCard({
           {when || '—'}
           {match.court ? ` · корт ${match.court}` : ''}
         </span>
-        {match.score && <span className="de-match__score">{match.score}</span>}
-        {match.status !== 'scheduled' && (
-          <span className={`badge ${statusBadge(match.status)}`}>
-            {match.status_display}
-          </span>
-        )}
       </div>
 
       {footer && (

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { matchesApi, playersApi, registrationsApi, tournamentsApi } from '../../api'
 import { FormField } from '../../components/FormField'
-import { CATEGORIES } from '../../utils/categories'
+import { categoryLabel } from '../../utils/categories'
 import type { Registration } from '../../api/registrations'
-import type { MatchApiErrors, MatchFormData, Player, Tournament } from '../../types'
+import type { MatchApiErrors, MatchFormData, Player, TournamentListItem } from '../../types'
 import { playerName } from './matchUtils'
+import './MatchFormPage.css'
 
 const EMPTY: MatchFormData = {
   tournament: '',
@@ -20,9 +21,13 @@ const EMPTY: MatchFormData = {
   court: null,
   scheduled_at: '',
   score: '',
+  set1_home: null,
+  set1_away: null,
+  set2_home: null,
+  set2_away: null,
+  set3_home: null,
+  set3_away: null,
 }
-
-const FINISHED_STATUSES = new Set(['finished', 'walkover'])
 
 // datetime-local должен получать локальное время, иначе при сохранении сдвиг на часовой пояс
 function toLocalInput(value: string | null) {
@@ -43,7 +48,7 @@ export function MatchFormPage() {
   const [loading, setLoading] = useState(true)
 
   const [players, setPlayers] = useState<Player[]>([])
-  const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [tournaments, setTournaments] = useState<TournamentListItem[]>([])
   const [registrations, setRegistrations] = useState<Registration[]>([])
 
   useEffect(() => {
@@ -67,6 +72,12 @@ export function MatchFormPage() {
           court: m.court,
           scheduled_at: toLocalInput(m.scheduled_at),
           score: m.score,
+          set1_home: m.set1_home,
+          set1_away: m.set1_away,
+          set2_home: m.set2_home,
+          set2_away: m.set2_away,
+          set3_home: m.set3_home,
+          set3_away: m.set3_away,
         }))
         .catch(() => navigate('/matches'))
         .finally(() => setLoading(false))
@@ -79,13 +90,17 @@ export function MatchFormPage() {
     setForm(prev => {
       const next = { ...prev, [field]: value }
 
-      // при смене турнира — сбросить игроков
+      // при смене турнира — сбросить игроков и взять категорию турнира
       if (field === 'tournament') {
         next.player1 = ''
         next.pair1_player2 = ''
         next.player2 = ''
         next.pair2_player2 = ''
         next.winner = null
+        const chosen = tournaments.find(t => t.id === value)
+        if (chosen) {
+          next.gender_type = chosen.gender_type as MatchFormData['gender_type']
+        }
       }
 
       // сбросить winner если сменили игроков-капитанов
@@ -112,7 +127,6 @@ export function MatchFormPage() {
 
   const selectedTournament = tournaments.find(t => t.id === form.tournament)
   const isDoubles = selectedTournament?.kind === 'doubles'
-  const showResult = FINISHED_STATUSES.has(form.status)
 
   // пары турнира — для выбора пары целиком, а не двух игроков по отдельности
   const pairs = useMemo(() => {
@@ -264,28 +278,13 @@ export function MatchFormPage() {
           />
         </div>
 
-        <div className="form-row">
-          <FormField as="select" label="Категория" required
-            value={form.gender_type}
-            onChange={e => set('gender_type', e.target.value as MatchFormData['gender_type'])}
-            error={errors.gender_type}
-          >
-            {CATEGORIES
-              .filter(c => !selectedTournament || c.kind === selectedTournament.kind)
-              .map(c => <option key={c.value} value={c.gender}>{c.label}</option>)}
-          </FormField>
-
-          <FormField as="select" label="Статус"
-            value={form.status}
-            onChange={e => set('status', e.target.value as MatchFormData['status'])}
-            error={errors.status}
-          >
-            <option value="scheduled">Запланирован</option>
-            <option value="in_progress">Идёт</option>
-            <option value="finished">Завершён</option>
-            <option value="walkover">Тех. поражение</option>
-          </FormField>
-        </div>
+        {selectedTournament && (
+          <p className="seed-hint">
+            Категория матча — «{categoryLabel(selectedTournament.kind, selectedTournament.gender_type)}» —
+            задаётся турниром. Статус выставляется сам: есть счёт или победитель — матч завершён,
+            иначе он ещё не игрался.
+          </p>
+        )}
 
         {/* ── Одиночный: 2 игрока ────────────────────────────────────────── */}
         {!isDoubles && (
@@ -356,42 +355,83 @@ export function MatchFormPage() {
           </>
         )}
 
-        {/* ── Результат ──────────────────────────────────────────────────── */}
-        {showResult && (
-          <div className="form-row">
-            <FormField as="select" label={isDoubles ? 'Победившая пара' : 'Победитель'}
-              value={String(form.winner ?? '')}
-              onChange={e => set('winner', Number(e.target.value) || null)}
-              error={errors.winner}
-            >
-              <option value="">— не выбран —</option>
-              {isDoubles ? (
-                <>
-                  {p1 && (
-                    <option value={p1.id}>
-                      Пара 1: {playerName(p1)}{players.find(p => p.id === form.pair1_player2) ? ` / ${playerName(players.find(p => p.id === form.pair1_player2)!)}` : ''}
-                    </option>
-                  )}
-                  {p2 && (
-                    <option value={p2.id}>
-                      Пара 2: {playerName(p2)}{players.find(p => p.id === form.pair2_player2) ? ` / ${playerName(players.find(p => p.id === form.pair2_player2)!)}` : ''}
-                    </option>
-                  )}
-                </>
-              ) : (
-                captains.map(p => (
-                  <option key={p.id} value={p.id}>{playerName(p)}</option>
-                ))
-              )}
-            </FormField>
-
-            <FormField
-              label="Счёт" placeholder="6:4 7:5"
-              value={form.score}
-              onChange={e => set('score', e.target.value)}
-              error={errors.score}
-            />
+        {/* ── Счёт по сетам ──────────────────────────────────────────────── */}
+        <div className="sets-table">
+          <div className="sets-table__head">
+            <span className="sets-table__label" />
+            <span>{isDoubles ? 'Пара 1' : 'Игрок 1'}</span>
+            <span>{isDoubles ? 'Пара 2' : 'Игрок 2'}</span>
           </div>
+          {([
+            { label: 'Сет 1', home: 'set1_home', away: 'set1_away' },
+            { label: 'Сет 2', home: 'set2_home', away: 'set2_away' },
+            { label: 'Сет 3', home: 'set3_home', away: 'set3_away' },
+          ] as const).map(field => (
+            <div className="sets-table__row" key={field.home}>
+              <span className="sets-table__label">{field.label}</span>
+              <input
+                type="number"
+                min={0}
+                max={99}
+                className="sets-table__input"
+                value={form[field.home] ?? ''}
+                onChange={event => set(field.home, event.target.value === '' ? null : Number(event.target.value))}
+              />
+              <input
+                type="number"
+                min={0}
+                max={99}
+                className="sets-table__input"
+                value={form[field.away] ?? ''}
+                onChange={event => set(field.away, event.target.value === '' ? null : Number(event.target.value))}
+              />
+            </div>
+          ))}
+          <p className="sets-table__hint">
+            {selectedTournament
+              ? `Сет до ${selectedTournament.set_games}, тай-брейк при ${selectedTournament.set_games === 4 ? '3:3' : '6:6'} до 7. `
+              : ''}
+            {selectedTournament?.third_set_super_tiebreak
+              ? '3-й сет — тай-брейк до 10.'
+              : '3-й сет — полный.'}
+          </p>
+        </div>
+
+        {errors.score && <p className="form-error">{errors.score}</p>}
+
+        <div className="form-row">
+          <FormField as="select" label={isDoubles ? 'Победившая пара' : 'Победитель'}
+            value={String(form.winner ?? '')}
+            onChange={e => set('winner', Number(e.target.value) || null)}
+            error={errors.winner}
+            disabled={!form.player1 || !form.player2}
+          >
+            <option value="">— не выбран —</option>
+            {isDoubles ? (
+              <>
+                {p1 && (
+                  <option value={p1.id}>
+                    Пара 1: {playerName(p1)}{players.find(p => p.id === form.pair1_player2) ? ` / ${playerName(players.find(p => p.id === form.pair1_player2)!)}` : ''}
+                  </option>
+                )}
+                {p2 && (
+                  <option value={p2.id}>
+                    Пара 2: {playerName(p2)}{players.find(p => p.id === form.pair2_player2) ? ` / ${playerName(players.find(p => p.id === form.pair2_player2)!)}` : ''}
+                  </option>
+                )}
+              </>
+            ) : (
+              captains.map(p => (
+                <option key={p.id} value={p.id}>{playerName(p)}</option>
+              ))
+            )}
+          </FormField>
+        </div>
+
+        {form.winner && (
+          <p className="seed-hint">
+            Победитель автоматически перейдёт в следующий круг, проигравший — в подвал.
+          </p>
         )}
 
         {errors.non_field_errors && (

@@ -1,9 +1,11 @@
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework.viewsets import ModelViewSet
 
-from core.models import Match
+from core.models import Match, Tournament
 from core.permissions import RolePermission
 from core.serializers import MatchSerializer
+from core.services.points import apply_awards
 
 
 class MatchViewSet(ModelViewSet):
@@ -14,6 +16,26 @@ class MatchViewSet(ModelViewSet):
     def perform_update(self, serializer):
         match = serializer.save()
         self._advance(match)
+
+        # правка матча завершённого турнира меняет итоги — пересчитываем очки
+        tournament = match.tournament
+        if tournament.status == Tournament.Status.FINISHED and tournament.points_category:
+            if tournament.points_awards.exists() or self._all_matches_finished(tournament):
+                apply_awards(tournament)
+                tournament.points_awarded_at = timezone.now()
+                tournament.save(update_fields=["points_awarded_at"])
+
+    @staticmethod
+    def _all_matches_finished(tournament):
+        # пустые матчи (например, незаполненный матч за 3-е место) не учитываем
+        matches = Match.objects.filter(
+            tournament=tournament,
+            player1__isnull=False,
+            player2__isnull=False,
+        )
+        return matches.exists() and not matches.exclude(
+            status__in=[Match.Status.FINISHED, Match.Status.WALKOVER]
+        ).exists()
 
     def _advance(self, match):
         """Победитель уходит в next_match, проигравший — в loser_next_match."""
@@ -70,7 +92,20 @@ class MatchViewSet(ModelViewSet):
             qs = qs.filter(pair1_player2__isnull=True)
         elif kind_param == "doubles":
             qs = qs.filter(pair1_player2__isnull=False)
-        if status:
+        if status == "in_progress":
+            # «идёт» — время наступило, но результата ещё нет
+            qs = qs.filter(
+                status=Match.Status.SCHEDULED,
+                score="",
+                winner__isnull=True,
+                scheduled_at__lte=timezone.now(),
+            )
+        elif status == Match.Status.SCHEDULED:
+            qs = qs.filter(
+                Q(status=Match.Status.SCHEDULED),
+                Q(scheduled_at__isnull=True) | Q(scheduled_at__gt=timezone.now()),
+            )
+        elif status:
             qs = qs.filter(status=status)
         if player_id:
             # игрок может быть в любом из четырёх слотов (одиночный и парный)

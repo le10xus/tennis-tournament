@@ -24,6 +24,13 @@ class Tournament(models.Model):
         SUMMING_UP = "summing_up", "Подводим итоги"
         FINISHED = "finished", "Завершён"
 
+    class PointsCategory(models.TextChoices):
+        NONE = "", "Не начислять очки"
+        TWO_DAY = "two_day", "2-дневный ТВД"
+        ONE_DAY = "one_day", "1-дневный ТВД или NTRP<3"
+        VETERANS = "veterans", "Ветераны"
+        REGION = "region", "Чемпионат области"
+
     name = models.CharField(max_length=200)
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.SINGLES)
     gender_type = models.CharField(max_length=10, choices=GenderType.choices, default=GenderType.MALE)
@@ -44,6 +51,34 @@ class Tournament(models.Model):
     sunday_start_time = models.TimeField(
         default=time(9, 0), verbose_name="Начало в воскресенье"
     )
+    set_games = models.PositiveSmallIntegerField(
+        default=6,
+        choices=[(4, "До 4 геймов"), (6, "До 6 геймов")],
+        verbose_name="Сет до",
+    )
+    third_set_super_tiebreak = models.BooleanField(
+        default=False, verbose_name="3-й сет — тай-брейк до 10"
+    )
+    points_category = models.CharField(
+        max_length=20,
+        choices=PointsCategory.choices,
+        blank=True,
+        default=PointsCategory.NONE,
+        verbose_name="Категория начисления очков",
+    )
+    points_awarded_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="Очки начислены"
+    )
+    age_min = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="Минимальный возраст игрока"
+    )
+    pair_age_sum_min = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="Минимальная сумма возрастов пары"
+    )
+    regulation = models.FileField(
+        upload_to="regulations/", blank=True, null=True, verbose_name="Регламент"
+    )
+    summary_text = models.TextField(blank=True, verbose_name="Итоги турнира")
     min_rating = models.PositiveIntegerField(null=True, blank=True)
     max_rating = models.PositiveIntegerField(null=True, blank=True)
     players = models.ManyToManyField(
@@ -72,6 +107,7 @@ class TournamentRegistration(models.Model):
     registered_at = models.DateTimeField(auto_now_add=True)
     seed = models.PositiveSmallIntegerField(null=True, blank=True)
     pair_id = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Номер пары (для парных турниров)")
+    wildcard = models.BooleanField(default=False, verbose_name="Wild card (WC)")
     invited_by = models.ForeignKey(
         Player,
         on_delete=models.SET_NULL,
@@ -93,3 +129,46 @@ class TournamentRegistration(models.Model):
                 violation_error_message="Игрок уже зарегистрирован в этом турнире.",
             )
         ]
+
+class TournamentPhoto(models.Model):
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name="photos"
+    )
+    image = models.ImageField(upload_to="tournaments/photos/", verbose_name="Фото")
+    caption = models.CharField(max_length=200, blank=True, verbose_name="Подпись")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="Порядок")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = "Фотография турнира"
+        verbose_name_plural = "Фотографии турнира"
+
+    def __str__(self):
+        return self.caption or f"Фото #{self.pk}"
+
+
+class TournamentPointsAward(models.Model):
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name="points_awards"
+    )
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name="points_awards"
+    )
+    place = models.CharField(max_length=10, verbose_name="Место")
+    points = models.PositiveIntegerField(default=0, verbose_name="Очки")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-points", "id"]
+        verbose_name = "Начисление очков"
+        verbose_name_plural = "Начисления очков"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tournament", "player"],
+                name="unique_tournament_points_award",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.player} — {self.place} ({self.points})"

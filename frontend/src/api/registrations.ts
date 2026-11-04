@@ -45,6 +45,8 @@ export interface Registration {
   registered_at: string
   seed: number | null
   pair_id: number | null
+  wildcard: boolean
+  age_ok: boolean
   invited_by: number | null
   invited_by_detail: PlayerInReg | null
 }
@@ -73,8 +75,8 @@ export const registrationsApi = {
       partner: partnerId,
     }),
 
-  approve: (registrationId: number) =>
-    http.post<Registration>(`/registrations/${registrationId}/approve/`, {}),
+  approve: (registrationId: number, wildcard = false) =>
+    http.post<Registration>(`/registrations/${registrationId}/approve/`, { wildcard }),
 
   confirm: (registrationId: number) =>
     http.post<Registration>(`/registrations/${registrationId}/confirm/`, {}),

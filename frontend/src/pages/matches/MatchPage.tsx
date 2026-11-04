@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { matchesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { categoryLabel } from '../../utils/categories'
-import { statusBadge } from './matchUtils'
 import type { Match } from '../../types'
 
 export function MatchPage() {
@@ -44,6 +43,16 @@ export function MatchPage() {
     ? (match.winner === match.player1 ? side1 : side2)
     : null
 
+  const setsText = [
+    [match.set1_home, match.set1_away],
+    [match.set2_home, match.set2_away],
+    [match.set3_home, match.set3_away],
+  ]
+    .filter(([home, away]) => home !== null && away !== null)
+    .map(([home, away]) => `${home}:${away}`)
+    .join(' ')
+  const scoreText = match.score || setsText
+
   return (
     <div style={{ maxWidth: 560 }}>
       <div className="t-page__header">
@@ -78,10 +87,7 @@ export function MatchPage() {
         </div>
 
         <div className="t-card__grid" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-          <InfoRow label="Статус">
-            <span className={`badge ${statusBadge(match.status)}`}>{match.status_display}</span>
-          </InfoRow>
-          {match.score && <InfoRow label="Счёт"><span>{match.score}</span></InfoRow>}
+          <InfoRow label="Счёт"><span>{scoreText || '—'}</span></InfoRow>
           {winnerLabel && <InfoRow label="Победитель"><span>{winnerLabel}</span></InfoRow>}
           <InfoRow label="Категория"><span>{categoryLabel(match.kind, match.gender_type)}</span></InfoRow>
           {match.scheduled_at && (

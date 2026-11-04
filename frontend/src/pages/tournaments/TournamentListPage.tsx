@@ -4,7 +4,7 @@ import { tournamentsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { DeleteTableAction, EditTableAction } from '../../components/TableActionIcon'
 import { CATEGORIES, categoryLabel } from '../../utils/categories'
-import type { Tournament } from '../../types'
+import type { TournamentListItem } from '../../types'
 import './TournamentListPage.css'
 
 const STATUS_OPTIONS = [
@@ -28,7 +28,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 export function TournamentListPage() {
   const { canEdit, canDelete } = useAuth()
-  const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [tournaments, setTournaments] = useState<TournamentListItem[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,7 +59,7 @@ export function TournamentListPage() {
     load(status, category)
   }
 
-  async function handleDelete(t: Tournament) {
+  async function handleDelete(t: TournamentListItem) {
     if (!confirm(`Удалить турнир «${t.name}»?`)) return
     setDeletingId(t.id)
     try {

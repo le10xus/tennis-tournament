@@ -61,6 +61,12 @@ class Match(models.Model):
     slot_index = models.PositiveSmallIntegerField(default=0)
     scheduled_at = models.DateTimeField(null=True, blank=True)
     court = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Корт")
+    set1_home = models.PositiveSmallIntegerField(null=True, blank=True)
+    set1_away = models.PositiveSmallIntegerField(null=True, blank=True)
+    set2_home = models.PositiveSmallIntegerField(null=True, blank=True)
+    set2_away = models.PositiveSmallIntegerField(null=True, blank=True)
+    set3_home = models.PositiveSmallIntegerField(null=True, blank=True)
+    set3_away = models.PositiveSmallIntegerField(null=True, blank=True)
     score = models.CharField(max_length=50, blank=True, help_text='Например: "6:4 7:5"')
 
     def clean(self):

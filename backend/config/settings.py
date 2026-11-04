@@ -95,6 +95,9 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 if FRONTEND_DIST.exists():
     STATICFILES_DIRS = [("frontend", FRONTEND_DIST)]
 

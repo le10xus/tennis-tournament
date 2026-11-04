@@ -252,6 +252,7 @@ code {
 .badge--green  { background: #f0fff4; color: #276749; border-color: #9ae6b4; }
 .badge--blue   { background: #ebf8ff; color: #2b6cb0; border-color: #90cdf4; }
 .badge--yellow { background: #fffff0; color: #975a16; border-color: #faf089; }
+.badge--red    { background: #fff5f5; color: #c53030; border-color: #feb2b2; }
 .badge--gray   { background: var(--code-bg); color: var(--text); }
 
 /* ── Form (shared) ── */

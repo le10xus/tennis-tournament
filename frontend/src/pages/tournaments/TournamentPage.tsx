@@ -5,10 +5,12 @@ import { useAuth } from '../../auth/AuthContext'
 import { DeleteTableAction } from '../../components/TableActionIcon'
 import { PlayerPicker } from '../../components/PlayerPicker'
 import { categoryLabel } from '../../utils/categories'
-import { statusBadge } from '../matches/matchUtils'
 import type { Registration } from '../../api/registrations'
+import type { ScheduleTemplate } from '../../api/tournaments'
 import type { Match, Player, Tournament } from '../../types'
 import './TournamentPage.css'
+
+const FINISHED_STATUSES = new Set(['finished', 'walkover'])
 
 const STATUS_BADGE: Record<string, string> = {
   draft: 'badge--gray',
@@ -17,6 +19,59 @@ const STATUS_BADGE: Record<string, string> = {
   in_progress: 'badge--green',
   summing_up: 'badge--blue',
   finished: 'badge--neutral',
+}
+
+function dayKeyOf(value: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function dayTitle(key: string) {
+  if (!key) return 'Ещё не в расписании'
+  const [year, month, day] = key.split('-').map(Number)
+  const text = new Date(year, month - 1, day).toLocaleDateString('ru-RU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+function shiftDay(key: string, days: number) {
+  if (!key) return ''
+  const [year, month, day] = key.split('-').map(Number)
+  const date = new Date(year, month - 1, day + days)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function dayNumber(date: string, startDate: string) {
+  const diff = Date.parse(`${date}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)
+  return Math.round(diff / 86_400_000) + 1
+}
+
+function timeLabel(value: string | null) {
+  if (!value) return '—'
+  return new Date(value).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+}
+
+function ageOn(birthDate: string | null, birthYear: number | null, onDate: string): number | null {
+  const date = new Date(onDate)
+  if (birthDate) {
+    const born = new Date(birthDate)
+    let years = date.getFullYear() - born.getFullYear()
+    if (
+      date.getMonth() < born.getMonth()
+      || (date.getMonth() === born.getMonth() && date.getDate() < born.getDate())
+    ) {
+      years -= 1
+    }
+    return years
+  }
+  if (birthYear) return date.getFullYear() - birthYear
+  return null
 }
 
 export function TournamentPage() {
@@ -47,6 +102,11 @@ export function TournamentPage() {
   const [declaring, setDeclaring] = useState(false)
   const [confirmingId, setConfirmingId] = useState<number | null>(null)
   const [removingId, setRemovingId] = useState<number | null>(null)
+  const [scheduling, setScheduling] = useState(false)
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null)
+  const [templateOpen, setTemplateOpen] = useState(false)
+  const [template, setTemplate] = useState<ScheduleTemplate | null>(null)
+  const [templateLoading, setTemplateLoading] = useState(false)
 
   useEffect(() => {
     playersApi.list({ page_size: '500' })
@@ -117,6 +177,36 @@ export function TournamentPage() {
     && tournament.gender_type !== playerGender,
   )
   const myPoints = isDoubles ? playerPoints.doubles : playerPoints.singles
+  const myPlayer = allPlayers.find(player => player.id === myPlayerId) ?? null
+  const chosenPartner = isDoubles && partnerId
+    ? allPlayers.find(player => player.id === Number(partnerId)) ?? null
+    : null
+  const myAge = myPlayer
+    ? ageOn(myPlayer.birth_date, myPlayer.birth_year, tournament.start_date)
+    : null
+  const partnerAge = chosenPartner
+    ? ageOn(chosenPartner.birth_date, chosenPartner.birth_year, tournament.start_date)
+    : null
+  const ageWarning = (() => {
+    if (!myPlayer) return null
+    if (
+      tournament.age_min
+      && myAge !== null
+      && myAge < tournament.age_min
+    ) {
+      return `Ваш возраст — ${myAge}, турнир с ${tournament.age_min} лет. Заявку сможет допустить организатор (WC).`
+    }
+    if (
+      isDoubles
+      && tournament.pair_age_sum_min
+      && myAge !== null
+      && partnerAge !== null
+      && myAge + partnerAge < tournament.pair_age_sum_min
+    ) {
+      return `Сумма возрастов пары — ${myAge + partnerAge}, нужно от ${tournament.pair_age_sum_min}. Заявку сможет допустить организатор (WC).`
+    }
+    return null
+  })()
   const ratingTooLow = (
     myPoints !== null
     && tournament.min_rating !== null
@@ -145,6 +235,66 @@ export function TournamentPage() {
               : null
 
   const registeredPlayerIds = new Set(registrations.map(reg => reg.player))
+  // обычным пользователям показываем только готовое расписание:
+  // матчи со временем и с известными участниками
+  const scheduleMatches = canEdit
+    ? matches
+    : matches.filter(match => (
+      match.scheduled_at && match.player1 && match.player2
+    ))
+  const scheduleDays = (() => {
+    const grouped = new Map<string, Match[]>()
+    scheduleMatches.forEach(match => {
+      const key = dayKeyOf(match.scheduled_at)
+      const list = grouped.get(key) ?? []
+      list.push(match)
+      grouped.set(key, list)
+    })
+    return [...grouped.entries()]
+      .sort((a, b) => {
+        if (a[0] === '') return 1
+        if (b[0] === '') return -1
+        return a[0].localeCompare(b[0])
+      })
+      .map(([key, list]) => {
+        const sorted = [...list].sort((a, b) => {
+          const at = a.scheduled_at ?? ''
+          const bt = b.scheduled_at ?? ''
+          if (at !== bt) return at.localeCompare(bt)
+          return (a.court ?? 99) - (b.court ?? 99)
+        })
+        const courts = [...new Set(sorted.map(m => m.court ?? 0))].sort((a, b) => a - b)
+        const times = [...new Set(sorted.map(m => m.scheduled_at ?? ''))].sort((a, b) => {
+          if (a === '') return 1
+          if (b === '') return -1
+          return a.localeCompare(b)
+        })
+        const cells = new Map<string, Match[]>()
+        sorted.forEach(match => {
+          const cellKey = `${match.scheduled_at ?? ''}|${match.court ?? 0}`
+          const cellMatches = cells.get(cellKey) ?? []
+          cellMatches.push(match)
+          cells.set(cellKey, cellMatches)
+        })
+        return { key, title: dayTitle(key), matches: sorted, courts, times, cells }
+      })
+  })()
+  const scheduleInfo = (() => {
+    const scheduled = matches.filter(match => match.scheduled_at)
+    const keys = [...new Set(scheduled.map(match => dayKeyOf(match.scheduled_at)))].sort()
+    const perDay = keys.map(key => {
+      const dayMatches = scheduled.filter(match => dayKeyOf(match.scheduled_at) === key)
+      return {
+        key,
+        total: dayMatches.length,
+        unfinished: dayMatches.filter(match => !FINISHED_STATUSES.has(match.status)).length,
+      }
+    })
+    const current = perDay.find(day => day.unfinished > 0) ?? null
+    const nextKey = keys.length ? shiftDay(keys[keys.length - 1], 1) : tournament.start_date
+    const unplayed = matches.filter(match => !FINISHED_STATUSES.has(match.status)).length
+    return { keys, perDay, current, nextKey, unplayed }
+  })()
   const disciplineNtrp = (player: { ntrp_singles: string; ntrp_doubles: string }) =>
     isDoubles ? player.ntrp_doubles : player.ntrp_singles
 
@@ -272,11 +422,11 @@ export function TournamentPage() {
     }
   }
 
-  async function handleApprove(registrationId: number) {
+  async function handleApprove(registrationId: number, wildcard = false) {
     setApprovingId(registrationId)
     setApplicationError(null)
     try {
-      await registrationsApi.approve(registrationId)
+      await registrationsApi.approve(registrationId, wildcard)
       await reloadRegistrations()
     } catch (err) {
       setApplicationError(registrationError(err, 'Не удалось подтвердить заявку.'))
@@ -308,6 +458,59 @@ export function TournamentPage() {
     }
   }
 
+  async function loadTemplate() {
+    setTemplateLoading(true)
+    setScheduleMessage(null)
+    try {
+      const data = await tournamentsApi.scheduleTemplate(tournamentId)
+      setTemplate(data)
+    } catch {
+      setScheduleMessage('Не удалось получить шаблон расписания.')
+    } finally {
+      setTemplateLoading(false)
+    }
+  }
+
+  async function handleGenerateSchedule(reset = false) {
+    if (reset && !confirm('Пересобрать текущий день? Несыгранные матчи этого дня будут разложены заново.')) {
+      return
+    }
+    if (!reset) {
+      const currentKey = scheduleInfo.current?.key
+        ?? scheduleInfo.keys[scheduleInfo.keys.length - 1]
+        ?? ''
+      const hasFutureDays = scheduleInfo.keys.some(key => key > currentKey)
+      if (
+        hasFutureDays
+        && !confirm('Несыгранные матчи будущих дней будут очищены. Продолжить?')
+      ) {
+        return
+      }
+    }
+    setScheduling(true)
+    setScheduleMessage(null)
+    try {
+      const result = await tournamentsApi.generateSchedule(tournamentId, { reset })
+      setMatches(result.matches)
+      setScheduleMessage(result.message)
+      if (templateOpen) await loadTemplate()
+    } catch (err) {
+      const data = (err as { data?: { detail?: string } }).data
+      setScheduleMessage(data?.detail ?? 'Не удалось составить расписание.')
+    } finally {
+      setScheduling(false)
+    }
+  }
+
+  async function toggleTemplate() {
+    if (templateOpen) {
+      setTemplateOpen(false)
+      return
+    }
+    setTemplateOpen(true)
+    await loadTemplate()
+  }
+
   return (
     <div className="tournament-page">
 
@@ -320,6 +523,9 @@ export function TournamentPage() {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <Link to={`/tournaments/${tournament.id}/bracket`} className="btn btn-ghost">
             Сетка
+          </Link>
+          <Link to={`/tournaments/${tournament.id}/summary`} className="btn btn-ghost">
+            Итоги
           </Link>
           {canEdit && (
             <Link to={`/tournaments/${tournament.id}/edit`} className="btn btn-primary">
@@ -340,6 +546,12 @@ export function TournamentPage() {
           <InfoRow label="Категория"><span>{categoryLabel(tournament.kind, tournament.gender_type)}</span></InfoRow>
           {ratingLimit && <InfoRow label="Рейтинг"><span>{ratingLimit}</span></InfoRow>}
           <InfoRow label="Формат"><span>{tournament.format_display}</span></InfoRow>
+          <InfoRow label="Сеты">
+            <span>
+              до {tournament.set_games}, тай-брейк при {tournament.set_games === 4 ? '3:3' : '6:6'} до 7
+              {' · '}3-й сет — {tournament.third_set_super_tiebreak ? 'тай-брейк до 10' : 'полный'}
+            </span>
+          </InfoRow>
           <InfoRow label="Начало"><span>{tournament.start_date}</span></InfoRow>
           {tournament.end_date && <InfoRow label="Окончание"><span>{tournament.end_date}</span></InfoRow>}
           {tournament.location && <InfoRow label="Место"><span>{tournament.location}</span></InfoRow>}
@@ -364,11 +576,17 @@ export function TournamentPage() {
             {ownRegistration?.status === 'pending' && !ownRegistration.invited_by_detail && (
               <span className="badge badge--yellow">Заявка рассматривается</span>
             )}
+            {ownRegistration?.status === 'pending' && !ownRegistration.age_ok && (
+              <span className="badge badge--red">Не проходите по возрасту — нужен WC</span>
+            )}
             {ownRegistration?.status === 'approved' && (
               <span className="badge badge--green">Вы участвуете</span>
             )}
             {!ownRegistration && applicationUnavailableReason && (
               <p className="t-application__hint">{applicationUnavailableReason}</p>
+            )}
+            {!ownRegistration && !applicationUnavailableReason && ageWarning && (
+              <p className="t-application__hint t-application__hint--warn">{ageWarning}</p>
             )}
             {!ownRegistration && !applicationUnavailableReason && isDoubles && (
               <p className="t-application__hint">
@@ -474,6 +692,11 @@ export function TournamentPage() {
                       <Link to={`/players/${reg.player}`} className="player-ref-link">
                         {reg.player_detail.last_name} {reg.player_detail.first_name}
                       </Link>
+                      {!reg.age_ok && (
+                        <span className="badge badge--red" title="Не проходит по возрастному цензу — можно допустить с WC">
+                          не проходит по возрасту
+                        </span>
+                      )}
                       {reg.invited_by_detail && (
                         <span className="col-secondary"> · приглашён</span>
                       )}
@@ -488,11 +711,13 @@ export function TournamentPage() {
                         className="btn btn-primary btn-sm"
                         type="button"
                         disabled={approvingId === reg.id}
-                        onClick={() => handleApprove(reg.id)}
+                        onClick={() => handleApprove(reg.id, !reg.age_ok)}
                       >
                         {approvingId === reg.id
                           ? 'Подтверждение…'
-                          : isDoubles ? 'Подтвердить пару' : 'Подтвердить'}
+                          : !reg.age_ok
+                            ? 'Допустить с WC'
+                            : isDoubles ? 'Подтвердить пару' : 'Подтвердить'}
                       </button>
                       <DeleteTableAction
                         onClick={() => handleRemove(reg)}
@@ -511,90 +736,226 @@ export function TournamentPage() {
 
       {applicationError && <p className="form-error t-application-error">{applicationError}</p>}
 
-      {/* ── Матчи ── */}
+      {/* ── Расписание по дням ── */}
       <section className="t-section">
-        <h2 className="section-title">
-          Матчи
-          <span className="section-count">{matches.length}</span>
-        </h2>
+        <div className="schedule-head">
+          <h2 className="section-title">
+            Расписание
+            <span className="section-count">{scheduleMatches.length}</span>
+          </h2>
+          {canEdit && (
+            <div className="schedule-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={scheduling}
+                onClick={() => handleGenerateSchedule()}
+              >
+                {scheduling ? 'Составление…' : 'Составить расписание'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={scheduling}
+                onClick={() => handleGenerateSchedule(true)}
+              >
+                Пересобрать день
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={templateLoading}
+                onClick={toggleTemplate}
+              >
+                {templateOpen ? 'Скрыть шаблон' : 'Шаблон следующих дней'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {canEdit && (
+          <div className="schedule-status">
+            {scheduleInfo.current ? (
+              <span>
+                Текущий день — <b>{dayTitle(scheduleInfo.current.key)}</b>:
+                сыграно {scheduleInfo.current.total - scheduleInfo.current.unfinished}
+                {' '}из {scheduleInfo.current.total}.
+                Следующий день откроется, когда завершатся матчи этого дня.
+              </span>
+            ) : scheduleInfo.keys.length > 0 ? (
+              <span>
+                День <b>{dayTitle(scheduleInfo.keys[scheduleInfo.keys.length - 1])}</b> закрыт —
+                можно составить расписание на <b>{dayTitle(scheduleInfo.nextKey)}</b>.
+                {scheduleInfo.unplayed > 0 && ' Часть матчей ещё ждёт участников.'}
+              </span>
+            ) : (
+              <span>
+                Расписание ещё не составлено. Первый день — <b>{dayTitle(tournament.start_date)}</b>.
+              </span>
+            )}
+            {scheduleInfo.unplayed > 0 && (
+              <span className="schedule-status__rest">
+                Не сыграно матчей: {scheduleInfo.unplayed}
+              </span>
+            )}
+          </div>
+        )}
+
+        {scheduleMessage && (
+          <p className="schedule-message">{scheduleMessage}</p>
+        )}
+
+        {templateOpen && (
+          <div className="schedule-template">
+            <div className="schedule-template__head">
+              <div>
+                <h3 className="schedule-template__title">Предварительный план</h3>
+                <p className="schedule-template__hint">
+                  Не сохраняется. Матчи с ещё неизвестными участниками тоже показаны —
+                  это ориентир, а не финальное расписание.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={loadTemplate}
+                disabled={templateLoading}
+              >
+                {templateLoading ? 'Обновление…' : 'Обновить'}
+              </button>
+            </div>
+
+            {templateLoading ? (
+              <p className="state-msg">Считаем план…</p>
+            ) : !template || template.days.every(day => day.matches.length === 0) ? (
+              <p className="state-msg">Планировать пока нечего — нет нерасставленных матчей.</p>
+            ) : (
+              template.days.map(day => {
+                if (day.matches.length === 0) return null
+                const templateTimes = [...new Set(day.matches.map(m => m.time))]
+                const templateCourts = [...new Set(day.matches.map(m => m.court))].sort((a, b) => a - b)
+                return (
+                  <div className="schedule-template__day" key={day.date}>
+                    <h4 className="schedule-template__day-title">
+                      День {dayNumber(day.date, tournament.start_date)} · {dayTitle(day.date)}
+                      <span>старт {day.start}</span>
+                      <span>{day.matches.length} матч(ей)</span>
+                    </h4>
+                    <div className="table-wrap">
+                      <table className="table schedule-table schedule-table--template">
+                        <thead>
+                          <tr>
+                            <th className="col-num">Время</th>
+                            {templateCourts.map(court => (
+                              <th key={court}>Корт {court}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {templateTimes.map(time => (
+                            <tr key={time}>
+                              <td className="col-num col-secondary">{time}</td>
+                              {templateCourts.map(court => (
+                                <td key={court}>
+                                  {day.matches
+                                    .filter(m => m.time === time && m.court === court)
+                                    .map(m => (
+                                      <div className="template-cell" key={m.id}>
+                                        <span>
+                                          {m.player1}
+                                          {m.pair1_player2 ? ` / ${m.pair1_player2}` : ''}
+                                          {' — '}
+                                          {m.player2}
+                                          {m.pair2_player2 ? ` / ${m.pair2_player2}` : ''}
+                                        </span>
+                                        <span className="template-cell__meta">R{m.round_number}</span>
+                                      </div>
+                                    ))}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        )}
 
         {matches.length === 0 ? (
           <p className="state-msg">Матчей пока нет.</p>
+        ) : scheduleMatches.length === 0 ? (
+          <p className="state-msg">
+            Расписание пока не опубликовано — матчи появятся, когда будут назначены
+            время и участники.
+          </p>
         ) : (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="col-num">Раунд</th>
-                  {isDoubles ? (
-                    <>
-                      <th>Пара 1</th>
-                      <th>Пара 2</th>
-                    </>
-                  ) : (
-                    <>
-                      <th>Игрок 1</th>
-                      <th>Игрок 2</th>
-                    </>
-                  )}
-                  <th>Победитель</th>
-                  <th>Счёт</th>
-                  <th>Статус</th>
-                  <th>Дата</th>
-                </tr>
-              </thead>
-              <tbody>
-                {matches.map(m => {
-                  const side1 = isDoubles && m.pair1_player2_detail && m.player1_detail
-                    ? `${m.player1_detail.last_name} / ${m.pair1_player2_detail.last_name}`
-                    : (m.player1_detail?.last_name ?? 'TBD')
-
-                  const side2 = isDoubles && m.pair2_player2_detail && m.player2_detail
-                    ? `${m.player2_detail.last_name} / ${m.pair2_player2_detail.last_name}`
-                    : (m.player2_detail?.last_name ?? 'TBD')
-
-                  const winnerLabel = m.winner_detail
-                    ? (isDoubles
-                      ? (m.winner === m.player1
-                        ? `${m.player1_detail?.last_name ?? ''}${m.pair1_player2_detail ? ' / ' + m.pair1_player2_detail.last_name : ''}`
-                        : `${m.player2_detail?.last_name ?? ''}${m.pair2_player2_detail ? ' / ' + m.pair2_player2_detail.last_name : ''}`)
-                      : m.winner_detail.last_name)
-                    : '—'
-
-                  return (
-                    <tr key={m.id}>
-                      <td className="col-num col-center col-secondary">
-                        <Link to={`/matches/${m.id}`} className="player-ref-link">R{m.round_number}</Link>
-                      </td>
-                      <td className="col-name">
-                        <Link to={`/matches/${m.id}`} className="player-ref-link">{side1}</Link>
-                      </td>
-                      <td className="col-name">
-                        <Link to={`/matches/${m.id}`} className="player-ref-link">{side2}</Link>
-                      </td>
-                      <td>{winnerLabel}</td>
-                      <td className="col-secondary">{m.score || '—'}</td>
-                      <td>
-                        <span className={`badge ${statusBadge(m.status)}`}>
-                          {m.status_display}
-                        </span>
-                      </td>
-                      <td className="col-secondary">
-                        {m.scheduled_at
-                          ? `${new Date(m.scheduled_at).toLocaleString('ru-RU', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}${m.court ? ` · корт ${m.court}` : ''}`
-                          : '—'}
-                      </td>
+          scheduleDays.map(day => (
+            <div className="schedule-day" key={day.key || 'none'}>
+              <h3 className="schedule-day__title">
+                {day.title}
+                <span className="section-count">{day.matches.length}</span>
+              </h3>
+              <div className="table-wrap">
+                <table className="table schedule-table">
+                  <thead>
+                    <tr>
+                      <th className="col-num">Время</th>
+                      {day.courts.map(court => (
+                        <th key={court}>{court ? `Корт ${court}` : 'Без корта'}</th>
+                      ))}
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {day.times.map(time => (
+                      <tr key={time || 'none'}>
+                        <td className="col-num col-secondary">
+                          {time ? timeLabel(time) : '—'}
+                        </td>
+                        {day.courts.map(court => (
+                          <td key={court}>
+                            {(day.cells.get(`${time}|${court}`) ?? []).map(m => {
+                              const side1 = isDoubles && m.pair1_player2_detail && m.player1_detail
+                                ? `${m.player1_detail.last_name} / ${m.pair1_player2_detail.last_name}`
+                                : (m.player1_detail?.last_name ?? 'TBD')
+
+                              const side2 = isDoubles && m.pair2_player2_detail && m.player2_detail
+                                ? `${m.player2_detail.last_name} / ${m.pair2_player2_detail.last_name}`
+                                : (m.player2_detail?.last_name ?? 'TBD')
+
+                              const winnerSide = m.winner
+                                ? (m.winner === m.player1 ? 1 : m.winner === m.player2 ? 2 : 0)
+                                : 0
+
+                              return (
+                                <Link
+                                  to={`/matches/${m.id}`}
+                                  className="schedule-cell"
+                                  key={m.id}
+                                >
+                                  <span className="schedule-cell__pairs">
+                                    <span className={winnerSide === 1 ? 'schedule-cell__win' : ''}>{side1}</span>
+                                    <span className="schedule-cell__vs">—</span>
+                                    <span className={winnerSide === 2 ? 'schedule-cell__win' : ''}>{side2}</span>
+                                  </span>
+                                  <span className="schedule-cell__meta">
+                                    R{m.round_number}{m.score ? ` · ${m.score}` : ''}
+                                  </span>
+                                </Link>
+                              )
+                            })}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))
         )}
       </section>
 
@@ -651,6 +1012,11 @@ export function TournamentPage() {
                         <Link to={`/players/${reg.player}`} className="player-ref-link">
                           {reg.player_detail.last_name} {reg.player_detail.first_name}
                         </Link>
+                        {reg.wildcard && (
+                          <span className="badge badge--yellow" title="Допущен по wild card">
+                            WC
+                          </span>
+                        )}
                       </td>
                       <td className="col-secondary">{reg.player_detail.city || '—'}</td>
                       <td className="col-num">{birthYear(reg.player_detail) ?? '—'}</td>

@@ -26,6 +26,11 @@ const EMPTY: TournamentFormData = {
   match_duration_minutes: 60,
   saturday_start_time: '09:00',
   sunday_start_time: '09:00',
+  set_games: 6,
+  third_set_super_tiebreak: false,
+  points_category: '',
+  age_min: null,
+  pair_age_sum_min: null,
   min_rating: null,
   max_rating: null,
 }
@@ -76,6 +81,11 @@ export function TournamentFormPage() {
           match_duration_minutes: t.match_duration_minutes,
           saturday_start_time: (t.saturday_start_time || '09:00').slice(0, 5),
           sunday_start_time: (t.sunday_start_time || '09:00').slice(0, 5),
+          set_games: t.set_games,
+          third_set_super_tiebreak: t.third_set_super_tiebreak,
+          points_category: t.points_category,
+          age_min: t.age_min,
+          pair_age_sum_min: t.pair_age_sum_min,
           min_rating: t.min_rating,
           max_rating: t.max_rating,
         }))
@@ -88,7 +98,13 @@ export function TournamentFormPage() {
   }, [id, isEdit, navigate])
 
   function set<K extends keyof TournamentFormData>(field: K, value: TournamentFormData[K]) {
-    setForm(prev => ({ ...prev, [field]: value }))
+    setForm(prev => {
+      const next = { ...prev, [field]: value }
+      if (field === 'kind' && value === 'singles') {
+        next.pair_age_sum_min = null
+      }
+      return next
+    })
     setErrors(prev => ({ ...prev, [field]: undefined }))
   }
 
@@ -135,6 +151,8 @@ export function TournamentFormPage() {
           registered_at: '',
           seed: null,
           pair_id: null,
+          wildcard: false,
+          age_ok: true,
           invited_by: null,
           invited_by_detail: null,
         }])
@@ -307,6 +325,68 @@ export function TournamentFormPage() {
             error={errors.sunday_start_time}
           />
         </div>
+
+        <div className="form-row">
+          <FormField as="select" label="Сет до" required
+            value={String(form.set_games)}
+            onChange={e => set('set_games', Number(e.target.value))}
+            error={errors.set_games}
+          >
+            <option value="6">До 6 геймов (тай-брейк 6:6)</option>
+            <option value="4">До 4 геймов (тай-брейк 3:3)</option>
+          </FormField>
+          <FormField as="select" label="3-й сет"
+            value={form.third_set_super_tiebreak ? 'tiebreak' : 'full'}
+            onChange={e => set('third_set_super_tiebreak', e.target.value === 'tiebreak')}
+            error={errors.third_set_super_tiebreak}
+          >
+            <option value="full">Полный сет</option>
+            <option value="tiebreak">Тай-брейк до 10</option>
+          </FormField>
+        </div>
+
+        <FormField as="select" label="Начисление очков"
+          value={form.points_category ?? ''}
+          onChange={e => set('points_category', e.target.value)}
+          error={errors.points_category}
+        >
+          <option value="">Не начислять очки</option>
+          <option value="two_day">2-дневный ТВД</option>
+          <option value="one_day">1-дневный ТВД или NTRP&lt;3</option>
+          <option value="veterans">Ветераны</option>
+          <option value="region">Чемпионат области</option>
+        </FormField>
+        {(form.points_category ?? '') !== '' && (
+          <p className="seed-hint">
+            Очки считаются по таблице федерации: категория + схема турнира
+            ({form.format === 'double_elim' ? 'двойное выбывание' : form.format === 'round_robin' ? 'групповой' : 'олимпийка'})
+            + число участников. Начисляются на странице «Итоги».
+          </p>
+        )}
+
+        <div className="form-row">
+          <FormField
+            label="Возраст от" type="number" min={0}
+            value={form.age_min ?? ''}
+            onChange={e => set('age_min', e.target.value === '' ? null : Number(e.target.value))}
+            error={errors.age_min}
+            placeholder="Без ограничения"
+          />
+          {form.kind === 'doubles' && (
+            <FormField
+              label="Сумма возрастов пары от" type="number" min={0}
+              value={form.pair_age_sum_min ?? ''}
+              onChange={e => set('pair_age_sum_min', e.target.value === '' ? null : Number(e.target.value))}
+              error={errors.pair_age_sum_min}
+              placeholder="Без ограничения"
+            />
+          )}
+        </div>
+        <p className="seed-hint">
+          «Возраст от» проверяется у каждого игрока
+          {form.kind === 'doubles' ? ', «Сумма возрастов пары» — у пары целиком' : ''}.
+          Если участник не проходит, заявку можно допустить с WC.
+        </p>
 
         <div className="form-row">
           <FormField

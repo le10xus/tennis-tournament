@@ -51,7 +51,9 @@ export function TournamentBracketPage() {
   const [savingSeeds, setSavingSeeds] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [scheduling, setScheduling] = useState(false)
+  const [onlySeeded, setOnlySeeded] = useState(false)
   const [genError, setGenError] = useState<string | null>(null)
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null)
   const [swappingBracket, setSwappingBracket] = useState(false)
   const [bracketSwapError, setBracketSwapError] = useState<string | null>(null)
   const [dragSeedIndex, setDragSeedIndex] = useState<number | null>(null)
@@ -151,7 +153,7 @@ export function TournamentBracketPage() {
     setGenerating(true)
     setGenError(null)
     try {
-      const newMatches = await tournamentsApi.generateBracket(numId)
+      const newMatches = await tournamentsApi.generateBracket(numId, { only_seeded: onlySeeded })
       setMatches(Array.isArray(newMatches) ? newMatches : [])
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } }
@@ -164,9 +166,11 @@ export function TournamentBracketPage() {
   async function handleSchedule() {
     setScheduling(true)
     setGenError(null)
+    setScheduleMessage(null)
     try {
-      const updated = await tournamentsApi.generateSchedule(numId)
-      setMatches(Array.isArray(updated) ? updated : [])
+      const result = await tournamentsApi.generateSchedule(numId)
+      setMatches(result.matches)
+      setScheduleMessage(result.message)
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } }
       setGenError(e.data?.detail ?? 'Не удалось составить расписание.')
@@ -295,6 +299,16 @@ export function TournamentBracketPage() {
             <span className="section-count">{matches.length}</span>
           </h2>
           {canEdit && fmt === 'double_elim' && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginRight: '0.75rem', fontSize: '0.85rem' }}>
+              <input
+                type="checkbox"
+                checked={onlySeeded}
+                onChange={event => setOnlySeeded(event.target.checked)}
+              />
+              Только сеяные
+            </label>
+          )}
+          {canEdit && fmt === 'double_elim' && (
             <button
               type="button"
               className="btn btn-ghost"
@@ -313,8 +327,11 @@ export function TournamentBracketPage() {
               disabled={scheduling}
               onClick={handleSchedule}
             >
-              {scheduling ? 'Составление…' : 'Составить расписание'}
+              {scheduling ? 'Составление…' : 'Составить расписание на день'}
             </button>
+          )}
+          {scheduleMessage && (
+            <p className="seed-hint" style={{ marginTop: '-0.25rem' }}>{scheduleMessage}</p>
           )}
           {canEdit && fmt !== 'double_elim' && (
             <p className="seed-hint">
@@ -356,6 +373,16 @@ export function TournamentBracketPage() {
       {matches.length === 0 && registrations.length >= 2 && (
         <div className="empty-state" style={{ marginTop: '1rem' }}>
           <p>Сетка ещё не сгенерирована.</p>
+          {canEdit && fmt === 'double_elim' && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+              <input
+                type="checkbox"
+                checked={onlySeeded}
+                onChange={event => setOnlySeeded(event.target.checked)}
+              />
+              Только сеяные
+            </label>
+          )}
           {canEdit && (
             <button
               type="button"

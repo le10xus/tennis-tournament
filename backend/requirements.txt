@@ -6,3 +6,4 @@ python-dotenv>=1.0
 djangorestframework-simplejwt>=5.3
 gunicorn>=23.0,<24.0
 whitenoise>=6.8,<7.0
+pillow>=10.4
