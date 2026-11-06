@@ -362,6 +362,8 @@ def build_awards(tournament, matches=None):
         if not player:
             continue
         points = points_for(tournament.points_category, scheme, count, place)
+        if tournament.points_table:
+            points = int(tournament.points_table.get(place, 0))
         if points <= 0:
             continue
         awards.append(Award(player=player, place=place, points=points))

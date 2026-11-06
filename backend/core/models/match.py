@@ -17,11 +17,13 @@ class Match(models.Model):
         WINNERS = "winners", "Основная сетка"
         CONSOLATION = "consolation", "Подвал"
         THIRD_PLACE = "third_place", "Матч за 3-е место"
+        GROUP = "group", "Групповой этап"
 
     class Group(models.TextChoices):
         MAIN = "", "Основная"
         PLACES_5_8 = "5-8", "5–8 места"
         PLACES_9_16 = "9-16", "9–16 места"
+        CONSOLATION_THIRD = "third", "3-е место утешительного"
 
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="matches")
     bracket = models.CharField(max_length=20, choices=Bracket.choices, default=Bracket.WINNERS)
@@ -57,6 +59,9 @@ class Match(models.Model):
         Player, on_delete=models.SET_NULL, null=True, blank=True, related_name="won_matches"
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.SCHEDULED)
+    is_historical = models.BooleanField(
+        default=False, verbose_name="Исторический матч (импорт)"
+    )
     round_number = models.PositiveSmallIntegerField(default=1)
     slot_index = models.PositiveSmallIntegerField(default=0)
     scheduled_at = models.DateTimeField(null=True, blank=True)

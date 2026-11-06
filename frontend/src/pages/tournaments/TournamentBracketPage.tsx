@@ -4,6 +4,7 @@ import { matchesApi, registrationsApi, tournamentsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import type { Registration } from '../../api/registrations'
 import { DoubleElimBracket } from './DoubleElimBracket'
+import { HistoricalBracket } from './HistoricalBracket'
 import type { Match, Tournament, GenderType } from '../../types'
 import {
   type BracketSlot,
@@ -20,6 +21,23 @@ import './TournamentBracketPage.css'
 
 const SEED_DRAG_TYPE = 'application/x-seed-row'
 const BRACKET_DRAG_TYPE = 'application/x-bracket-slot'
+
+function scheduleWhen(value: string) {
+  return new Date(value).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function scheduleSide(match: Match, side: 1 | 2) {
+  const captain = side === 1 ? match.player1_detail : match.player2_detail
+  const partner = side === 1 ? match.pair1_player2_detail : match.pair2_player2_detail
+  if (!captain) return '—'
+  if (partner) return `${captain.last_name} / ${partner.last_name}`
+  return `${captain.last_name} ${captain.first_name}`
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Pair {
@@ -56,6 +74,15 @@ export function TournamentBracketPage() {
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null)
   const [swappingBracket, setSwappingBracket] = useState(false)
   const [bracketSwapError, setBracketSwapError] = useState<string | null>(null)
+  const [showSchedule, setShowSchedule] = useState(
+    () => localStorage.getItem('bracket.showSchedule') !== 'false',
+  )
+  const [pdfLoading, setPdfLoading] = useState(false)
+
+  function toggleSchedule(value: boolean) {
+    setShowSchedule(value)
+    localStorage.setItem('bracket.showSchedule', String(value))
+  }
   const [dragSeedIndex, setDragSeedIndex] = useState<number | null>(null)
   const [dragPairIndex, setDragPairIndex] = useState<number | null>(null)
 
@@ -179,6 +206,96 @@ export function TournamentBracketPage() {
     }
   }
 
+  async function handleDownloadPdf() {
+    setGenError(null)
+    if (!tournament) return
+    setPdfLoading(true)
+    const element = document.querySelector<HTMLElement>('.bracket-print')
+    const h2c = (window as unknown as {
+      html2canvas?: (
+        element: HTMLElement,
+        options?: Record<string, unknown>,
+      ) => Promise<HTMLCanvasElement>
+    }).html2canvas
+    const JsPDF = (window as unknown as {
+      jspdf?: {
+        jsPDF?: new (options: Record<string, unknown>) => {
+          internal: { pageSize: { getWidth: () => number; getHeight: () => number } }
+          addImage: (...args: unknown[]) => void
+          addPage: () => void
+          setFillColor: (...args: unknown[]) => void
+          rect: (...args: unknown[]) => void
+          save: (name: string) => void
+        }
+      }
+    }).jspdf?.jsPDF
+
+    if (!element || !h2c || !JsPDF) {
+      setPdfLoading(false)
+      setGenError('PDF-модуль не загрузился. Обнови страницу.')
+      return
+    }
+
+    document.body.classList.add('pdf-export')
+    try {
+      await new Promise<void>(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      })
+      const canvas = await h2c(element, {
+        backgroundColor: '#14141c',
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        windowWidth: element.scrollWidth,
+      })
+      const pdf = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
+      const pageW = pdf.internal.pageSize.getWidth()
+      const pageH = pdf.internal.pageSize.getHeight()
+      const sliceHeight = Math.floor((canvas.width * pageH) / pageW)
+      let offset = 0
+      let firstPage = true
+
+      while (offset < canvas.height) {
+        const height = Math.min(sliceHeight, canvas.height - offset)
+        const slice = document.createElement('canvas')
+        slice.width = canvas.width
+        slice.height = height
+        const context = slice.getContext('2d')
+        if (!context) break
+        context.fillStyle = '#14141c'
+        context.fillRect(0, 0, slice.width, slice.height)
+        context.drawImage(canvas, 0, offset, canvas.width, height, 0, 0, canvas.width, height)
+        if (!firstPage) pdf.addPage()
+        pdf.setFillColor(20, 20, 28)
+        pdf.rect(0, 0, pageW, pageH, 'F')
+        pdf.addImage(
+          slice.toDataURL('image/jpeg', 0.92),
+          'JPEG',
+          0,
+          0,
+          pageW,
+          (height * pageW) / canvas.width,
+        )
+        firstPage = false
+        offset += height
+      }
+
+      const dates = tournament.end_date && tournament.end_date !== tournament.start_date
+        ? `${tournament.start_date}—${tournament.end_date}`
+        : tournament.start_date
+      const fileName = `${tournament.name} ${dates}`
+        .replace(/[\\/:*?"<>|]+/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim()
+      pdf.save(`${fileName}.pdf`)
+    } catch {
+      setGenError('Не удалось сформировать PDF.')
+    } finally {
+      document.body.classList.remove('pdf-export')
+      setPdfLoading(false)
+    }
+  }
+
   async function handleBracketMove(from: BracketSlot, to: BracketTarget) {
     if (!tournament) return
     setSwappingBracket(true)
@@ -222,13 +339,17 @@ export function TournamentBracketPage() {
   )
 
   const isDoubles = tournament.kind === 'doubles'
+  const isHistorical = matches.some(match => match.is_historical)
+  const scheduledMatches = matches
+    .filter(match => !match.is_historical && match.scheduled_at)
+    .sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime())
   const fmt = tournament.format
 
   return (
     <div className="bracket-page">
       <div className="bracket-page__header">
         <div>
-          <Link to={`/tournaments/${numId}`} className="back-link">← {tournament.name}</Link>
+          <Link to={`/tournaments/${numId}?view=info`} className="back-link">← {tournament.name}</Link>
           <h1 className="page-title">Турнирная сетка</h1>
         </div>
         <span className="badge badge--blue">{tournament.format_display}</span>
@@ -293,13 +414,39 @@ export function TournamentBracketPage() {
 
       {/* ── Bracket display ── */}
       {matches.length > 0 && (
-        <section className="bracket-section">
+        <section className="bracket-section bracket-print">
+          <div className="bracket-print__header">
+            <h1>{tournament.name}</h1>
+            <p>
+              {tournament.start_date}
+              {tournament.end_date ? ` — ${tournament.end_date}` : ''}
+              {tournament.location ? ` · ${tournament.location}` : ''}
+              {tournament.format_display ? ` · ${tournament.format_display}` : ''}
+            </p>
+          </div>
           <h2 className="section-title">
             Сетка
             <span className="section-count">{matches.length}</span>
           </h2>
-          {canEdit && fmt === 'double_elim' && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginRight: '0.75rem', fontSize: '0.85rem' }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ marginBottom: '0.75rem' }}
+            disabled={pdfLoading}
+            onClick={handleDownloadPdf}
+          >
+            {pdfLoading ? 'Формируем PDF…' : 'Скачать PDF'}
+          </button>
+          <label className="schedule-toggle">
+            <input
+              type="checkbox"
+              checked={showSchedule}
+              onChange={event => toggleSchedule(event.target.checked)}
+            />
+            Показывать расписание
+          </label>
+          {canEdit && fmt === 'double_elim' && !isHistorical && (
+            <label className="only-seeded-toggle" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginRight: '0.75rem', fontSize: '0.85rem' }}>
               <input
                 type="checkbox"
                 checked={onlySeeded}
@@ -308,7 +455,7 @@ export function TournamentBracketPage() {
               Только сеяные
             </label>
           )}
-          {canEdit && fmt === 'double_elim' && (
+          {canEdit && fmt === 'double_elim' && !isHistorical && (
             <button
               type="button"
               className="btn btn-ghost"
@@ -319,7 +466,7 @@ export function TournamentBracketPage() {
               {generating ? 'Генерация…' : 'Перегенерировать сетку'}
             </button>
           )}
-          {canEdit && (
+          {canEdit && !isHistorical && (
             <button
               type="button"
               className="btn btn-ghost"
@@ -343,7 +490,21 @@ export function TournamentBracketPage() {
           {bracketSwapError && (
             <p className="form-error-global" style={{ marginBottom: '0.75rem' }}>{bracketSwapError}</p>
           )}
-          {fmt === 'round_robin' ? (
+          {isHistorical && fmt === 'double_elim' ? (
+            <DoubleElimBracket
+              matches={matches}
+              registrations={registrations}
+              isDoubles={isDoubles}
+              editable={false}
+              showSchedule={showSchedule}
+            />
+          ) : isHistorical ? (
+            <HistoricalBracket
+              matches={matches}
+              printTitle={tournament.name}
+              printMeta={`${tournament.start_date}${tournament.end_date ? ` — ${tournament.end_date}` : ''}${tournament.location ? ` · ${tournament.location}` : ''}`}
+            />
+          ) : fmt === 'round_robin' ? (
             <RoundRobinView
               matches={matches}
               registrations={registrations}
@@ -357,6 +518,7 @@ export function TournamentBracketPage() {
               registrations={registrations}
               isDoubles={isDoubles}
               editable={canEdit}
+              showSchedule={showSchedule}
             />
           ) : (
             <SingleElimView
@@ -366,6 +528,33 @@ export function TournamentBracketPage() {
               editable={canEdit}
               onMove={handleBracketMove}
             />
+          )}
+
+          {showSchedule && scheduledMatches.length > 0 && (
+            <div className="bracket-print__schedule">
+              <h3 className="bracket-print__schedule-title">Расписание</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Когда</th>
+                    <th>Корт</th>
+                    <th>Матч</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scheduledMatches.map(match => (
+                    <tr key={match.id}>
+                      <td>{scheduleWhen(match.scheduled_at!)}</td>
+                      <td>{match.court ?? '—'}</td>
+                      <td>
+                        {scheduleSide(match, 1)} — {scheduleSide(match, 2)}
+                        {match.score ? ` · ${match.score}` : ''}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       )}

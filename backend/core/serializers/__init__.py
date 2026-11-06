@@ -4,7 +4,9 @@ from .tournament import (
     TournamentPhotoSerializer,
     TournamentPointsAwardSerializer,
     TournamentRegistrationSerializer,
+    TournamentResultSerializer,
     TournamentSerializer,
+    TournamentVideoSerializer,
 )
 from .match import MatchSerializer, PlayerBriefSerializer
 from .user import UserSerializer
@@ -16,6 +18,8 @@ __all__ = [
     "TournamentPhotoSerializer",
     "TournamentPointsAwardSerializer",
     "TournamentRegistrationSerializer",
+    "TournamentResultSerializer",
+    "TournamentVideoSerializer",
     "MatchSerializer",
     "PlayerBriefSerializer",
     "UserSerializer",

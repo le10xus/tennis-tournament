@@ -15,6 +15,22 @@ export interface TournamentPointsAward {
   points: number
 }
 
+export interface TournamentVideo {
+  id: number
+  title: string
+  url: string
+  embed_url: string
+  order: number
+}
+
+export interface TournamentResult {
+  id: number
+  place: number
+  name: string
+  player: number | null
+  player_detail: PlayerBrief | null
+}
+
 export interface Tournament {
   id: number
   name: string
@@ -38,10 +54,15 @@ export interface Tournament {
   set_games: number
   third_set_super_tiebreak: boolean
   regulation: string | null
+  regulation_url: string
   summary_text: string
   photos: TournamentPhoto[]
+  videos: TournamentVideo[]
+  results: TournamentResult[]
+  source_url: string
   points_category: string
   points_category_display: string
+  points_table: Record<string, number>
   points_awarded_at: string | null
   points_awards: TournamentPointsAward[]
   age_min: number | null
@@ -54,7 +75,15 @@ export interface Tournament {
 
 export type TournamentListItem = Omit<
   Tournament,
-  'summary_text' | 'regulation' | 'photos' | 'points_awarded_at' | 'points_awards'
+  | 'summary_text'
+  | 'regulation'
+  | 'regulation_url'
+  | 'source_url'
+  | 'results'
+  | 'videos'
+  | 'photos'
+  | 'points_awarded_at'
+  | 'points_awards'
 >
 
 export interface TournamentBrief {
@@ -85,7 +114,10 @@ export interface TournamentFormData {
   set_games: number
   third_set_super_tiebreak: boolean
   summary_text?: string
+  source_url?: string
+  regulation_url?: string
   points_category?: string
+  points_table?: Record<string, number> | null
   age_min: number | null
   pair_age_sum_min: number | null
   min_rating: number | null

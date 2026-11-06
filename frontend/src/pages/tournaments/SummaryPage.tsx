@@ -84,9 +84,26 @@ export function SummaryPage() {
   const [uploadingRegulation, setUploadingRegulation] = useState(false)
   const [awarding, setAwarding] = useState(false)
   const [contentError, setContentError] = useState<string | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   const photoInputRef = useRef<HTMLInputElement>(null)
   const regulationInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (lightboxIndex === null || !tournament) return
+    const photos = tournament.photos
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setLightboxIndex(null)
+      if (event.key === 'ArrowLeft') {
+        setLightboxIndex(index => (index === null ? null : Math.max(0, index - 1)))
+      }
+      if (event.key === 'ArrowRight') {
+        setLightboxIndex(index => (index === null ? null : Math.min(photos.length - 1, index + 1)))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightboxIndex, tournament])
 
   useEffect(() => {
     Promise.all([
@@ -103,6 +120,15 @@ export function SummaryPage() {
   }, [numId])
 
   const podium = useMemo(() => computePodium(matches), [matches])
+  const resultPodium = useMemo(() => {
+    const grouped = new Map<number, string[]>()
+    ;(tournament?.results ?? []).forEach(result => {
+      const list = grouped.get(result.place) ?? []
+      list.push(result.name)
+      grouped.set(result.place, list)
+    })
+    return [...grouped.entries()].sort((a, b) => a[0] - b[0])
+  }, [tournament])
   const maxWinnersRound = useMemo(
     () => Math.max(0, ...matches.filter(m => m.bracket === 'winners').map(m => m.round_number)),
     [matches],
@@ -202,8 +228,20 @@ export function SummaryPage() {
   return (
     <div className="summary-page">
       <div className="summary-topbar">
-        <Link to={`/tournaments/${tournament.id}`} className="back-link">← Турнир</Link>
-        <Link to={`/tournaments/${tournament.id}/bracket`} className="btn btn-ghost">Сетка</Link>
+        <Link to={`/tournaments/${tournament.id}?view=info`} className="back-link">← Турнир</Link>
+        <div className="summary-topbar__actions">
+          {tournament.source_url && (
+            <a
+              className="btn btn-ghost"
+              href={tournament.source_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Пост в VK
+            </a>
+          )}
+          <Link to={`/tournaments/${tournament.id}/bracket`} className="btn btn-ghost">Сетка</Link>
+        </div>
       </div>
 
       <header className="summary-hero">
@@ -218,50 +256,26 @@ export function SummaryPage() {
 
       {podium ? (
         <section className="summary-podium">
-          <PodiumCard place={1} players={podium.first} />
-          <PodiumCard place={2} players={podium.second} />
-          <PodiumCard place={3} players={podium.third} />
+          <PodiumCard place={1} names={podium.first.map(fullName)} />
+          <PodiumCard place={2} names={podium.second.map(fullName)} />
+          <PodiumCard place={3} names={podium.third.map(fullName)} />
           {podium.fourth.length > 0 && (
-            <PodiumCard place={4} players={podium.fourth} />
+            <PodiumCard place={4} names={podium.fourth.map(fullName)} />
           )}
         </section>
+      ) : resultPodium.length > 0 ? (
+        <section className="summary-podium">
+          {resultPodium.map(([place, names]) => (
+            <PodiumCard key={place} place={place} names={names} />
+          ))}
+        </section>
       ) : (
-        <p className="summary-pending">Победители появятся здесь после завершения финала.</p>
+        <p className="summary-pending">
+          {finished
+            ? 'Результаты не сохранены в базе — смотрите источник.'
+            : 'Победители появятся здесь после завершения финала.'}
+        </p>
       )}
-
-      <section className="summary-block">
-        <h2 className="summary-block__title">Что было на турнире</h2>
-        {canEdit ? (
-          <div className="summary-editor">
-            <textarea
-              className="summary-editor__area"
-              rows={8}
-              value={summaryText}
-              placeholder="Расскажите, как прошёл турнир: победители, яркие матчи, атмосфера…"
-              onChange={event => setSummaryText(event.target.value)}
-            />
-            <div className="summary-editor__actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={savingText}
-                onClick={handleSaveText}
-              >
-                {savingText ? 'Сохранение…' : 'Сохранить текст'}
-              </button>
-              {textSaved && <span className="summary-editor__saved">Сохранено</span>}
-            </div>
-          </div>
-        ) : summaryText ? (
-          <div className="summary-text">
-            {summaryText.split(/\n{2,}/).map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
-            ))}
-          </div>
-        ) : (
-          <p className="state-msg">Итоги пока не опубликованы.</p>
-        )}
-      </section>
 
       <section className="summary-block">
         <div className="summary-block__head">
@@ -294,11 +308,16 @@ export function SummaryPage() {
           <p className="state-msg">Фотографий пока нет.</p>
         ) : (
           <div className="summary-gallery">
-            {tournament.photos.map(photo => (
+            {tournament.photos.map((photo, index) => (
               <figure className="summary-gallery__item" key={photo.id}>
-                <a href={photo.image} target="_blank" rel="noreferrer">
+                <button
+                  type="button"
+                  className="summary-gallery__open"
+                  onClick={() => setLightboxIndex(index)}
+                  aria-label={`Открыть фото: ${photo.caption || 'фото турнира'}`}
+                >
                   <img src={photo.image} alt={photo.caption || 'Фото турнира'} loading="lazy" />
-                </a>
+                </button>
                 {photo.caption && <figcaption>{photo.caption}</figcaption>}
                 {canEdit && (
                   <button
@@ -315,6 +334,82 @@ export function SummaryPage() {
           </div>
         )}
       </section>
+
+      {lightboxIndex !== null && tournament.photos[lightboxIndex] && (
+        <div
+          className="photo-lightbox"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <button
+            type="button"
+            className="photo-lightbox__close"
+            onClick={() => setLightboxIndex(null)}
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+          {lightboxIndex > 0 && (
+            <button
+              type="button"
+              className="photo-lightbox__nav photo-lightbox__nav--prev"
+              onClick={event => {
+                event.stopPropagation()
+                setLightboxIndex(lightboxIndex - 1)
+              }}
+              aria-label="Предыдущее фото"
+            >
+              ‹
+            </button>
+          )}
+          <img
+            className="photo-lightbox__image"
+            src={tournament.photos[lightboxIndex].image}
+            alt={tournament.photos[lightboxIndex].caption || 'Фото турнира'}
+            onClick={event => event.stopPropagation()}
+          />
+          {lightboxIndex < tournament.photos.length - 1 && (
+            <button
+              type="button"
+              className="photo-lightbox__nav photo-lightbox__nav--next"
+              onClick={event => {
+                event.stopPropagation()
+                setLightboxIndex(lightboxIndex + 1)
+              }}
+              aria-label="Следующее фото"
+            >
+              ›
+            </button>
+          )}
+          <div className="photo-lightbox__caption">
+            {tournament.photos[lightboxIndex].caption || `${lightboxIndex + 1} / ${tournament.photos.length}`}
+          </div>
+        </div>
+      )}
+
+      {tournament.videos.length > 0 && (
+        <section className="summary-block">
+          <h2 className="summary-block__title">Видео</h2>
+          <div className="summary-videos">
+            {tournament.videos.map((video, index) => (
+              <a
+                className="summary-video"
+                key={video.id}
+                href={video.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span className="summary-video__play">▶</span>
+                <span className="summary-video__title">
+                  {video.title || `Видео ${index + 1}`}
+                </span>
+                <span className="summary-video__hint">Открыть в VK</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="summary-block">
         <div className="summary-block__head">
@@ -344,10 +439,19 @@ export function SummaryPage() {
             </>
           )}
         </div>
-        {tournament.regulation ? (
-          <a className="summary-regulation" href={tournament.regulation} target="_blank" rel="noreferrer">
-            Скачать регламент (PDF)
-          </a>
+        {tournament.regulation || tournament.regulation_url ? (
+          <div className="summary-regulation-links">
+            {tournament.regulation && (
+              <a className="summary-regulation" href={tournament.regulation} target="_blank" rel="noreferrer">
+                Скачать регламент (PDF)
+              </a>
+            )}
+            {tournament.regulation_url && (
+              <a className="summary-regulation" href={tournament.regulation_url} target="_blank" rel="noreferrer">
+                Регламент (ссылка)
+              </a>
+            )}
+          </div>
         ) : (
           <p className="state-msg">Регламент не загружен.</p>
         )}
@@ -451,6 +555,40 @@ export function SummaryPage() {
         </section>
       )}
 
+      <section className="summary-block summary-block--text">
+        <h2 className="summary-block__title">Что было на турнире</h2>
+        {canEdit ? (
+          <div className="summary-editor">
+            <textarea
+              className="summary-editor__area"
+              rows={10}
+              value={summaryText}
+              placeholder="Расскажите, как прошёл турнир: победители, яркие матчи, атмосфера…"
+              onChange={event => setSummaryText(event.target.value)}
+            />
+            <div className="summary-editor__actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={savingText}
+                onClick={handleSaveText}
+              >
+                {savingText ? 'Сохранение…' : 'Сохранить текст'}
+              </button>
+              {textSaved && <span className="summary-editor__saved">Сохранено</span>}
+            </div>
+          </div>
+        ) : summaryText ? (
+          <div className="summary-text">
+            {summaryText.split(/\n{2,}/).map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
+            ))}
+          </div>
+        ) : (
+          <p className="state-msg">Итоги пока не опубликованы.</p>
+        )}
+      </section>
+
       {contentError && <p className="form-error">{contentError}</p>}
     </div>
   )
@@ -467,7 +605,8 @@ function placeLabel(place: string): string {
   return `${place}-е место`
 }
 
-function isWinner(match: Match, side: 1 | 2): boolean {  const captain = side === 1 ? match.player1 : match.player2
+function isWinner(match: Match, side: 1 | 2): boolean {
+  const captain = side === 1 ? match.player1 : match.player2
   return Boolean(match.winner && captain && match.winner === captain)
 }
 
@@ -483,15 +622,15 @@ function roundLabel(match: Match, maxRound: number): string {
   return `R${match.round_number}`
 }
 
-function PodiumCard({ place, players }: { place: number; players: PlayerBrief[] }) {
-  const label = place === 1 ? 'Победитель' : place === 2 ? 'Финалист' : place === 3 ? '3-е место' : '4-е место'
+function PodiumCard({ place, names }: { place: number; names: string[] }) {
+  const label = place === 1 ? 'Победитель' : place === 2 ? 'Финалист' : place === 3 ? '3-е место' : place === 4 ? '4-е место' : `${place}-е место`
   const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : place === 3 ? '🥉' : '4'
   return (
     <div className={`podium-card podium-card--${place}`}>
       <span className="podium-card__medal">{medal}</span>
       <span className="podium-card__label">{label}</span>
       <span className="podium-card__names">
-        {players.length ? players.map(fullName).join(' / ') : '—'}
+        {names.length ? names.join(' / ') : '—'}
       </span>
     </div>
   )

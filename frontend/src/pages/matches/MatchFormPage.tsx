@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { matchesApi, playersApi, registrationsApi, tournamentsApi } from '../../api'
 import { FormField } from '../../components/FormField'
 import { categoryLabel } from '../../utils/categories'
@@ -41,6 +41,8 @@ export function MatchFormPage() {
   const { id } = useParams()
   const isEdit = Boolean(id)
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: string } | null)?.from
 
   const [form, setForm] = useState<MatchFormData>(EMPTY)
   const [errors, setErrors] = useState<MatchApiErrors>({})
@@ -79,7 +81,7 @@ export function MatchFormPage() {
           set3_home: m.set3_home,
           set3_away: m.set3_away,
         }))
-        .catch(() => navigate('/matches'))
+        .catch(() => navigate(from || '/matches'))
         .finally(() => setLoading(false))
     } else {
       loadRef.finally(() => setLoading(false))
@@ -225,7 +227,7 @@ export function MatchFormPage() {
       } else {
         await matchesApi.create(payload as MatchFormData)
       }
-      navigate('/matches')
+      navigate(from || '/matches')
     } catch (err: unknown) {
       const apiErr = err as { data?: MatchApiErrors }
       if (apiErr.data) setErrors(apiErr.data)
@@ -439,7 +441,7 @@ export function MatchFormPage() {
         )}
 
         <div className="form-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => navigate('/matches')}>
+          <button type="button" className="btn btn-ghost" onClick={() => navigate(from || '/matches')}>
             Отмена
           </button>
           <button type="submit" className="btn btn-primary" disabled={saving}>

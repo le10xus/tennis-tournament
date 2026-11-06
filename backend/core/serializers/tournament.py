@@ -10,6 +10,8 @@ from core.models import (
     TournamentPhoto,
     TournamentPointsAward,
     TournamentRegistration,
+    TournamentResult,
+    TournamentVideo,
 )
 from .match import PlayerBriefSerializer
 from .player import PlayerSerializer
@@ -20,6 +22,20 @@ class TournamentPhotoSerializer(serializers.ModelSerializer):
     class Meta:
         model = TournamentPhoto
         fields = ["id", "image", "caption", "order"]
+
+
+class TournamentResultSerializer(serializers.ModelSerializer):
+    player_detail = PlayerBriefSerializer(source="player", read_only=True)
+
+    class Meta:
+        model = TournamentResult
+        fields = ["id", "place", "name", "player", "player_detail"]
+
+
+class TournamentVideoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TournamentVideo
+        fields = ["id", "title", "url", "embed_url", "order"]
 
 
 class TournamentPointsAwardSerializer(serializers.ModelSerializer):
@@ -71,6 +87,8 @@ class TournamentSerializer(serializers.ModelSerializer):
         source="get_points_category_display", read_only=True
     )
     points_awards = TournamentPointsAwardSerializer(many=True, read_only=True)
+    results = TournamentResultSerializer(many=True, read_only=True)
+    videos = TournamentVideoSerializer(many=True, read_only=True)
 
     class Meta:
         model = Tournament
@@ -86,7 +104,8 @@ class TournamentSerializer(serializers.ModelSerializer):
             "saturday_start_time", "sunday_start_time",
             "set_games", "third_set_super_tiebreak",
             "regulation", "summary_text", "photos",
-            "points_category", "points_category_display",
+            "source_url", "regulation_url", "results", "videos",
+            "points_category", "points_category_display", "points_table",
             "points_awarded_at", "points_awards",
             "age_min", "pair_age_sum_min",
             "created_at",
@@ -136,7 +155,7 @@ class TournamentListSerializer(serializers.ModelSerializer):
             "courts", "match_duration_minutes",
             "saturday_start_time", "sunday_start_time",
             "set_games", "third_set_super_tiebreak",
-            "points_category", "points_category_display",
+            "points_category", "points_category_display", "points_table",
             "age_min", "pair_age_sum_min",
             "created_at",
         ]

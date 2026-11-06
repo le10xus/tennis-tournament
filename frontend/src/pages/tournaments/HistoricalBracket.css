@@ -1,0 +1,182 @@
+.hist-bracket {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.hist-board {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.hist-board__col {
+  flex: 0 0 220px;
+  min-width: 220px;
+}
+
+.hist-board__body {
+  position: relative;
+}
+
+.hist-board__slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.hist-board__slot .hist-match {
+  height: 58px;
+  overflow: hidden;
+  box-sizing: border-box;
+  line-height: 1.25;
+}
+
+.hist-board__third-label {
+  position: absolute;
+  left: 0;
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hist-section__title {
+  margin: 0 0 0.75rem;
+  color: var(--text-h);
+  font-size: 1rem;
+}
+
+.hist-columns {
+  display: flex;
+  gap: 0.85rem;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.hist-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 0.5rem;
+  min-width: 220px;
+}
+
+.hist-column__title {
+  margin: 0 0 0.15rem;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hist-match {
+  padding: 0.45rem 0.55rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 0.8rem;
+}
+
+.hist-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.12rem 0;
+}
+
+.hist-row + .hist-row {
+  border-top: 1px dashed var(--border);
+}
+
+.hist-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-h);
+}
+
+.hist-row--win .hist-name {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.hist-score {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.3rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.hist-score span {
+  min-width: 0.8rem;
+  text-align: right;
+}
+
+.hist-row--win .hist-score {
+  color: var(--accent);
+}
+
+.hist-match__score-text {
+  margin-top: 0.25rem;
+  color: var(--text);
+  font-size: 0.75rem;
+}
+
+.hist-group-tables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.hist-group {
+  min-width: 260px;
+}
+
+.hist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.hist-table th,
+.hist-table td {
+  padding: 0.3rem 0.45rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.hist-table th {
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.hist-table td {
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+}
+
+.hist-table td:first-child {
+  width: 1.6rem;
+  color: var(--text);
+}
+
+.hist-table td:not(:nth-child(2)) {
+  text-align: center;
+}
+
+.hist-table__name {
+  white-space: nowrap;
+}

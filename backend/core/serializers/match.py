@@ -40,15 +40,15 @@ class MatchSerializer(serializers.ModelSerializer):
             "pair2_player2", "pair2_player2_detail",
             "winner", "winner_detail",
             "status", "status_display",
-            "bracket", "bracket_display",
+            "bracket", "bracket_display", "group",
             "next_match", "next_slot", "loser_next_match", "loser_next_slot",
             "round_number", "slot_index", "scheduled_at", "court", "score",
             "set1_home", "set1_away", "set2_home", "set2_away",
-            "set3_home", "set3_away",
+            "set3_home", "set3_away", "is_historical",
         ]
         read_only_fields = [
             "id", "bracket", "next_match", "next_slot",
-            "loser_next_match", "loser_next_slot",
+            "loser_next_match", "loser_next_slot", "is_historical",
         ]
 
     def validate(self, data):

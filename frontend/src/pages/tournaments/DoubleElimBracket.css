@@ -14,14 +14,14 @@
 
 .de-col {
   display: flex;
-  flex: 1 1 0;
+  flex: 0 0 188px;
   flex-direction: column;
-  min-width: 150px;
+  min-width: 188px;
 }
 
 .de-col--final {
-  flex-basis: 190px;
-  min-width: 170px;
+  flex: 0 0 202px;
+  min-width: 202px;
 }
 
 .de-col__title {
@@ -44,8 +44,9 @@
 }
 
 .de-col--final .de-col__body {
+  position: relative;
   justify-content: center;
-  gap: 1.25rem;
+  gap: 0;
 }
 
 .de-col__third {
@@ -54,6 +55,13 @@
   gap: 0.4rem;
   padding-top: 0.75rem;
   border-top: 1px dashed var(--border);
+}
+
+.de-col--final .de-col__third {
+  position: absolute;
+  top: calc(50% + 3rem);
+  left: 0;
+  right: 0;
 }
 
 .de-col__subtitle {

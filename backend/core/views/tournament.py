@@ -106,7 +106,12 @@ class TournamentViewSet(ModelViewSet):
             qs = qs.filter(kind=kind_param)
         qs = qs.order_by("-start_date", "-id")
         if self.action == "retrieve":
-            qs = qs.prefetch_related("photos", "points_awards__player")
+            qs = qs.prefetch_related(
+                "photos",
+                "videos",
+                "points_awards__player",
+                "results__player",
+            )
         return qs
 
     @action(detail=True, methods=["post"], url_path="generate_bracket")
@@ -116,6 +121,11 @@ class TournamentViewSet(ModelViewSet):
             return Response({"detail": "Недостаточно прав."}, status=403)
 
         tournament = self.get_object()
+        if Match.objects.filter(tournament=tournament, is_historical=True).exists():
+            return Response(
+                {"detail": "Историческую сетку нельзя перегенерировать."},
+                status=400,
+            )
         only_seeded = bool(request.data.get("only_seeded"))
         recalculate_seeds(tournament)
         regs = list(

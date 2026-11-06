@@ -28,9 +28,9 @@ export interface Match {
   winner_detail: PlayerBrief | null
   status: MatchStatus
   status_display: string
-  bracket: 'winners' | 'consolation' | 'third_place'
+  bracket: 'winners' | 'consolation' | 'third_place' | 'group'
   bracket_display: string
-  group: '' | '5-8' | '9-16'
+  group: '' | '5-8' | '9-16' | 'third'
   next_match: number | null
   next_slot: number | null
   loser_next_match: number | null
@@ -46,6 +46,7 @@ export interface Match {
   set2_away: number | null
   set3_home: number | null
   set3_away: number | null
+  is_historical: boolean
 }
 
 export interface MatchFormData {

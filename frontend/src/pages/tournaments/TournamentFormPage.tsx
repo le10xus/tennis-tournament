@@ -29,10 +29,13 @@ const EMPTY: TournamentFormData = {
   set_games: 6,
   third_set_super_tiebreak: false,
   points_category: '',
+  points_table: null,
   age_min: null,
   pair_age_sum_min: null,
   min_rating: null,
   max_rating: null,
+  source_url: '',
+  regulation_url: '',
 }
 
 export function TournamentFormPage() {
@@ -44,6 +47,8 @@ export function TournamentFormPage() {
   const [errors, setErrors] = useState<TournamentApiErrors>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [pointsTableText, setPointsTableText] = useState('')
+  const [pointsTableError, setPointsTableError] = useState<string | null>(null)
 
   // все игроки для выбора
   const [allPlayers, setAllPlayers] = useState<Player[]>([])
@@ -66,29 +71,39 @@ export function TournamentFormPage() {
     ]
     if (isEdit) {
       loads.push(
-        tournamentsApi.get(Number(id)).then(t => setForm({
-          name: t.name,
-          kind: t.kind,
-          gender_type: t.gender_type,
-          format: t.format,
-          status: t.status,
-          start_date: t.start_date,
-          end_date: t.end_date ?? '',
-          location: t.location,
-          description: t.description,
-          max_players: t.max_players,
-          courts: t.courts,
-          match_duration_minutes: t.match_duration_minutes,
-          saturday_start_time: (t.saturday_start_time || '09:00').slice(0, 5),
-          sunday_start_time: (t.sunday_start_time || '09:00').slice(0, 5),
-          set_games: t.set_games,
-          third_set_super_tiebreak: t.third_set_super_tiebreak,
-          points_category: t.points_category,
-          age_min: t.age_min,
-          pair_age_sum_min: t.pair_age_sum_min,
-          min_rating: t.min_rating,
-          max_rating: t.max_rating,
-        }))
+        tournamentsApi.get(Number(id)).then(t => {
+          setForm({
+            name: t.name,
+            kind: t.kind,
+            gender_type: t.gender_type,
+            format: t.format,
+            status: t.status,
+            start_date: t.start_date,
+            end_date: t.end_date ?? '',
+            location: t.location,
+            description: t.description,
+            max_players: t.max_players,
+            courts: t.courts,
+            match_duration_minutes: t.match_duration_minutes,
+            saturday_start_time: (t.saturday_start_time || '09:00').slice(0, 5),
+            sunday_start_time: (t.sunday_start_time || '09:00').slice(0, 5),
+            set_games: t.set_games,
+            third_set_super_tiebreak: t.third_set_super_tiebreak,
+            points_category: t.points_category,
+            points_table: t.points_table ?? null,
+            age_min: t.age_min,
+            pair_age_sum_min: t.pair_age_sum_min,
+            min_rating: t.min_rating,
+            max_rating: t.max_rating,
+            source_url: t.source_url,
+            regulation_url: t.regulation_url,
+          })
+          setPointsTableText(
+            t.points_table && Object.keys(t.points_table).length
+              ? JSON.stringify(t.points_table, null, 2)
+              : '',
+          )
+        })
         .catch(() => navigate('/tournaments')),
         registrationsApi.listForTournament(Number(id), 'approved')
           .then(d => setRegistrations(d.results)),
@@ -105,6 +120,9 @@ export function TournamentFormPage() {
       }
       return next
     })
+    if (field === 'points_category' && !value) {
+      setPointsTableText('')
+    }
     setErrors(prev => ({ ...prev, [field]: undefined }))
   }
 
@@ -192,8 +210,23 @@ export function TournamentFormPage() {
     e.preventDefault()
     setSaving(true)
     setErrors({})
+    setPointsTableError(null)
+    let pointsTable: Record<string, number> | null = null
+    if (pointsTableText.trim()) {
+      try {
+        pointsTable = JSON.parse(pointsTableText)
+      } catch {
+        setPointsTableError('Таблица очков должна быть корректным JSON.')
+        setSaving(false)
+        return
+      }
+    }
     try {
-      const payload = { ...form, end_date: (form.end_date || null) as unknown as string }
+      const payload = {
+        ...form,
+        points_table: pointsTable,
+        end_date: (form.end_date || null) as unknown as string,
+      }
       if (isEdit) {
         await tournamentsApi.update(Number(id), payload)
         navigate('/tournaments')
@@ -363,6 +396,26 @@ export function TournamentFormPage() {
             + число участников. Начисляются на странице «Итоги».
           </p>
         )}
+        {(form.points_category ?? '') !== '' && (
+          <div className={`field${pointsTableError ? ' field--error' : ''}`}>
+            <label className="field-label" htmlFor="points_table">
+              Своя таблица очков (JSON)
+            </label>
+            <textarea
+              id="points_table"
+              className="field-input"
+              rows={6}
+              value={pointsTableText}
+              onChange={event => setPointsTableText(event.target.value)}
+              placeholder={'{\n  "1": 60,\n  "2": 40,\n  "3": 32,\n  "4": 25,\n  "1/4": 15,\n  "1/8": 9,\n  "1/16": 5\n}'}
+            />
+            <p className="seed-hint">
+              Если заполнено — заменяет федеральную таблицу. Ключи: 1, 2, 3, 4,
+              5-8, 9-12, 13-16, 1/4, 1/8, 1/16. Пусто — считать по федерации.
+            </p>
+            {pointsTableError && <p className="field-error">{pointsTableError}</p>}
+          </div>
+        )}
 
         <div className="form-row">
           <FormField
@@ -412,6 +465,25 @@ export function TournamentFormPage() {
           error={errors.location}
           placeholder="Спортивный комплекс «Олимп», Москва"
         />
+
+        <div className="form-row">
+          <FormField
+            label="Источник (VK)"
+            type="url"
+            value={form.source_url ?? ''}
+            onChange={e => set('source_url', e.target.value)}
+            error={errors.source_url}
+            placeholder="https://vk.com/wall-…"
+          />
+          <FormField
+            label="Ссылка на регламент"
+            type="url"
+            value={form.regulation_url ?? ''}
+            onChange={e => set('regulation_url', e.target.value)}
+            error={errors.regulation_url}
+            placeholder="https://…pdf"
+          />
+        </div>
 
         <div className={`field ${errors.description?.length ? 'field--error' : ''}`}>
           <label className="field-label" htmlFor="description">Описание</label>

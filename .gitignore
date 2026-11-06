@@ -14,11 +14,17 @@ __pycache__/
 # Django
 *.sqlite3
 backend/staticfiles/
-backend/media/
+
+# Медиа: фото турниров хранятся в Git LFS, остальное — локально
+backend/media/*
+!backend/media/tournaments/
+!backend/media/tournaments/photos/
+!backend/media/tournaments/photos/*.jpg
 
 # Локальный дамп базы (содержит персональные данные, в git не кладём)
 tennis_dump.sql
 *.dump
+*.bundle
 
 # Node
 node_modules/

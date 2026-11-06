@@ -136,6 +136,16 @@ export function TournamentPage() {
   }, [id])
 
   useEffect(() => {
+    if (!tournament) return
+    if (new URLSearchParams(window.location.search).get('view') === 'info') return
+    if (tournament.status === 'finished' || tournament.status === 'summing_up') {
+      navigate(`/tournaments/${tournament.id}/summary`, { replace: true })
+    } else if (tournament.status === 'in_progress') {
+      navigate(`/tournaments/${tournament.id}/bracket`, { replace: true })
+    }
+  }, [tournament, navigate])
+
+  useEffect(() => {
     if (isAuthenticated && role === 'player' && !canEdit) {
       usersApi.getMe()
         .then(profile => {
@@ -168,6 +178,14 @@ export function TournamentPage() {
     isDoubles ? player.points_doubles : player.points_singles
   const approvedRegistrations = registrations.filter(reg => reg.status === 'approved')
   const pendingRegistrations = registrations.filter(reg => reg.status === 'pending')
+  const pairIds = new Set(
+    approvedRegistrations
+      .filter(reg => reg.pair_id !== null)
+      .map(reg => reg.pair_id),
+  )
+  const participantCount = isDoubles
+    ? (pairIds.size || Math.ceil(approvedRegistrations.length / 2))
+    : approvedRegistrations.length
   const ownRegistration = registrations.find(reg => reg.is_current_user)
   const isPlayer = isAuthenticated && role === 'player' && !canEdit
   const tournamentId = tournament.id
@@ -230,7 +248,7 @@ export function TournamentPage() {
           ? `Для участия нужен рейтинг не ниже ${tournament.min_rating}.`
           : ratingTooHigh
             ? `Для участия нужен рейтинг не выше ${tournament.max_rating}.`
-            : approvedRegistrations.length >= tournament.max_players
+            : participantCount >= tournament.max_players
               ? 'В турнире нет свободных мест.'
               : null
 
@@ -556,7 +574,7 @@ export function TournamentPage() {
           {tournament.end_date && <InfoRow label="Окончание"><span>{tournament.end_date}</span></InfoRow>}
           {tournament.location && <InfoRow label="Место"><span>{tournament.location}</span></InfoRow>}
           <InfoRow label="Игроков">
-            <span>{approvedRegistrations.length} / {tournament.max_players}</span>
+            <span>{participantCount} / {tournament.max_players}</span>
           </InfoRow>
         </div>
         {tournament.description && (
@@ -963,7 +981,7 @@ export function TournamentPage() {
       <section className="t-section">
         <h2 className="section-title">
           Участники
-          <span className="section-count">{approvedRegistrations.length}</span>
+          <span className="section-count">{participantCount}</span>
         </h2>
 
         {isDoubles && (

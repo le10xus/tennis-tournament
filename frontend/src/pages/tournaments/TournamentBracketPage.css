@@ -2,7 +2,7 @@
   max-width: none;
 }
 
-/* страница сетки занимает всю ширину окна, без ограничения контента */
+/* СЃС‚СЂР°РЅРёС†Р° СЃРµС‚РєРё Р·Р°РЅРёРјР°РµС‚ РІСЃСЋ С€РёСЂРёРЅСѓ РѕРєРЅР°, Р±РµР· РѕРіСЂР°РЅРёС‡РµРЅРёСЏ РєРѕРЅС‚РµРЅС‚Р° */
 .content:has(.bracket-page) {
   max-width: none;
 }
@@ -15,7 +15,7 @@
   margin-bottom: 1.75rem;
 }
 
-/* ── Sections ── */
+/* в”Ђв”Ђ Sections в”Ђв”Ђ */
 .bracket-section {
   margin-bottom: 2.5rem;
 }
@@ -26,7 +26,7 @@
   margin-top: 1rem;
 }
 
-/* ── Seed input ── */
+/* в”Ђв”Ђ Seed input в”Ђв”Ђ */
 .seed-table-wrap {
   max-width: 560px;
 }
@@ -131,7 +131,7 @@
   outline: 1px dashed var(--accent);
 }
 
-/* ── Single-elim bracket ── */
+/* в”Ђв”Ђ Single-elim bracket в”Ђв”Ђ */
 .bracket {
   display: flex;
   gap: 0;
@@ -249,7 +249,7 @@
   background: var(--border);
 }
 
-/* ── Round-robin layout ── */
+/* в”Ђв”Ђ Round-robin layout в”Ђв”Ђ */
 .rr-layout {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -291,4 +291,381 @@
 
 .rr-round .bracket__match-card {
   width: 190px;
+}
+
+.bracket-print__schedule {
+  margin-top: 1.5rem;
+}
+
+.bracket-print__schedule-title {
+  margin: 0 0 0.6rem;
+  color: var(--text-h);
+  font-size: 1rem;
+}
+
+.bracket-print__schedule table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.bracket-print__schedule th,
+.bracket-print__schedule td {
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.bracket-print__schedule th {
+  color: var(--text);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bracket-print__header {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A3 landscape;
+    margin: 0;
+  }
+
+  html,
+  body {
+    background: #14141c !important;
+    color: #e5e7eb !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .bracket-print,
+  .bracket-print * {
+    visibility: visible;
+  }
+
+  .bracket-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7mm;
+    background: #14141c !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .bracket-print__header {
+    display: block;
+    margin-bottom: 4mm;
+    padding-bottom: 2.5mm;
+    border-bottom: 2px solid #8b5cf6;
+  }
+
+  .bracket-print__header h1 {
+    margin: 0;
+    color: #f5f3ff;
+    font-size: 18pt;
+    line-height: 1.15;
+  }
+
+  .bracket-print__header p {
+    margin: 1.5mm 0 0;
+    color: #b8b8c4;
+    font-size: 9.5pt;
+  }
+
+  .bracket-print .section-title {
+    display: none !important;
+  }
+
+  .bracket-print .section-count {
+    background: #2a1e4a;
+    color: #d8b4fe;
+  }
+
+  .bracket-print .btn,
+  .bracket-print .seed-hint,
+  .bracket-print .form-error-global,
+  .bracket-print .schedule-toggle,
+  .bracket-print .only-seeded-toggle,
+  .bracket-print .de-match__edit,
+  .bracket-print .de-match__footer,
+  .bracket-print .bracket-print__schedule {
+    display: none !important;
+  }
+
+  .bracket-print * {
+    color: #e5e7eb !important;
+  }
+
+  .de-board,
+  .hist-board {
+    overflow: visible !important;
+    gap: 2mm;
+    width: 100%;
+  }
+
+  .de-board {
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .de-col {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0 !important;
+    width: auto;
+    min-width: 0 !important;
+  }
+
+  .de-col__body {
+    flex: 1;
+    justify-content: space-around;
+  }
+
+  .de-match {
+    min-height: 13mm;
+  }
+
+  .hist-board {
+    zoom: 0.8;
+  }
+
+  .de-col--final {
+    flex: 1 1 0 !important;
+    width: auto;
+    min-width: 0 !important;
+  }
+
+  .hist-board__col {
+    flex: 1 1 0 !important;
+    width: auto;
+    min-width: 0 !important;
+  }
+
+  .de-col__title,
+  .hist-column__title {
+    margin-bottom: 2mm;
+    color: #a1a1aa !important;
+    font-size: 7pt;
+  }
+
+  .de-match,
+  .hist-match {
+    background: #1c1c26 !important;
+    border: 1px solid #3a3a4a !important;
+    border-radius: 2mm;
+    padding: 1.2mm;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .de-match__row,
+  .hist-row {
+    padding: 0.6mm 0 !important;
+  }
+
+  .de-match__row + .de-match__row,
+  .hist-row + .hist-row {
+    border-top: 1px solid #3a3a4a !important;
+  }
+
+  .de-col__third {
+    border-top-style: solid !important;
+  }
+
+  .de-match__name,
+  .hist-name {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    font-size: 7.5pt !important;
+    line-height: 1.15 !important;
+    color: #e5e7eb !important;
+  }
+
+  .de-match__row--win .de-match__name,
+  .hist-row--win .hist-name {
+    color: #c4b5fd !important;
+    font-weight: 700;
+  }
+
+  .de-match__seed {
+    color: #c4b5fd !important;
+    font-size: 6pt !important;
+  }
+
+  .de-match__points,
+  .hist-score {
+    color: #d4d4d8 !important;
+    font-size: 6.5pt !important;
+  }
+
+  .de-match__meta {
+    display: flex !important;
+    margin-top: 0.6mm;
+    padding-top: 0.6mm;
+    border-top: 1px solid #3a3a4a;
+  }
+
+  .de-match__when,
+  .de-match__footer {
+    color: #a1a1aa !important;
+    font-size: 6pt !important;
+  }
+
+  .hist-board__slot .hist-match {
+    height: 58px !important;
+    overflow: hidden !important;
+  }
+
+  .bracket-print__schedule {
+    margin-top: 0;
+    break-before: page;
+  }
+
+  .bracket-print__schedule-title {
+    margin: 0 0 3mm;
+    color: #111;
+    font-size: 12pt;
+  }
+
+  .bracket-print__schedule table {
+    font-size: 8pt;
+  }
+
+  .bracket-print__schedule th,
+  .bracket-print__schedule td {
+    border: 1px solid #bbb;
+    padding: 1mm;
+  }
+}
+
+.schedule-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.75rem;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.schedule-toggle input {
+  cursor: pointer;
+}
+
+@media print {
+  .schedule-toggle {
+    display: none !important;
+  }
+}
+
+/* Скрытый режим для html2canvas: делаем снимок «как для печати», но без @media print */
+body.pdf-export .bracket-print {
+  width: 1587px;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 7mm;
+  background: #14141c;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+body.pdf-export .bracket-print__header {
+  display: block;
+}
+
+body.pdf-export .bracket-print .section-title,
+body.pdf-export .bracket-print .btn,
+body.pdf-export .bracket-print .seed-hint,
+body.pdf-export .bracket-print .form-error-global,
+body.pdf-export .bracket-print .schedule-toggle,
+body.pdf-export .bracket-print .only-seeded-toggle,
+body.pdf-export .bracket-print .de-match__edit,
+body.pdf-export .bracket-print .de-match__footer,
+body.pdf-export .bracket-print .bracket-print__schedule {
+  display: none !important;
+}
+
+body.pdf-export .de-board,
+body.pdf-export .hist-board {
+  overflow: visible;
+  gap: 2mm;
+  width: 100%;
+  justify-content: center;
+}
+
+body.pdf-export .hist-board {
+  zoom: 0.8;
+}
+
+body.pdf-export .de-board {
+  min-height: 0;
+  align-items: stretch;
+}
+
+body.pdf-export .de-col {
+  flex: 0 0 188px;
+  min-width: 188px;
+  max-width: 188px;
+}
+
+body.pdf-export .de-col--final {
+  flex: 0 0 202px;
+  min-width: 202px;
+  max-width: 202px;
+}
+
+body.pdf-export .hist-board__col {
+  flex: 0 0 236px;
+  min-width: 236px;
+  max-width: 236px;
+}
+
+body.pdf-export .de-col__body {
+  flex: 1;
+  justify-content: space-around;
+}
+
+body.pdf-export .de-col--final .de-col__body {
+  justify-content: center;
+}
+
+body.pdf-export .de-match__name,
+body.pdf-export .hist-name {
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+  font-size: 8pt;
+  line-height: 1.2;
+}
+
+body.pdf-export .de-match__row {
+  padding-right: 0;
+}
+
+body.pdf-export .de-match__row + .de-match__row,
+body.pdf-export .hist-row + .hist-row {
+  border-top: 1px solid #3a3a4a;
+}
+
+body.pdf-export .de-col__third {
+  border-top-style: solid;
+}
+
+body.pdf-export * {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }

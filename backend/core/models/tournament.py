@@ -15,6 +15,7 @@ class Tournament(models.Model):
         ROUND_ROBIN = "round_robin", "Круговой"
         SINGLE_ELIM = "single_elim", "Олимпийская (с выбыванием)"
         DOUBLE_ELIM = "double_elim", "Двойное выбывание"
+        GROUP_PLAYOFF = "group_playoff", "Групповой + плей-офф"
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Черновик"
@@ -79,6 +80,11 @@ class Tournament(models.Model):
         upload_to="regulations/", blank=True, null=True, verbose_name="Регламент"
     )
     summary_text = models.TextField(blank=True, verbose_name="Итоги турнира")
+    points_table = models.JSONField(
+        default=dict, blank=True, verbose_name="Таблица очков турнира"
+    )
+    source_url = models.URLField(blank=True, verbose_name="Источник (VK)")
+    regulation_url = models.URLField(blank=True, verbose_name="Ссылка на регламент")
     min_rating = models.PositiveIntegerField(null=True, blank=True)
     max_rating = models.PositiveIntegerField(null=True, blank=True)
     players = models.ManyToManyField(
@@ -172,3 +178,44 @@ class TournamentPointsAward(models.Model):
 
     def __str__(self):
         return f"{self.player} — {self.place} ({self.points})"
+
+
+class TournamentVideo(models.Model):
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name="videos"
+    )
+    title = models.CharField(max_length=200, blank=True, verbose_name="Название")
+    url = models.URLField(verbose_name="Ссылка")
+    embed_url = models.URLField(blank=True, verbose_name="Ссылка для встраивания")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="Порядок")
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = "Видео турнира"
+        verbose_name_plural = "Видео турнира"
+
+    def __str__(self):
+        return self.title or f"Видео #{self.pk}"
+
+
+class TournamentResult(models.Model):
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name="results"
+    )
+    place = models.PositiveSmallIntegerField(verbose_name="Место")
+    name = models.CharField(max_length=200, verbose_name="Имя как в источнике")
+    player = models.ForeignKey(
+        Player,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tournament_results",
+    )
+
+    class Meta:
+        ordering = ["place", "id"]
+        verbose_name = "Результат турнира"
+        verbose_name_plural = "Результаты турнира"
+
+    def __str__(self):
+        return f"{self.place}. {self.name}"

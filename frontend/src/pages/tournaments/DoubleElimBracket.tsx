@@ -8,6 +8,8 @@ interface DoubleElimBracketProps {
   registrations: Registration[]
   isDoubles: boolean
   editable: boolean
+  showFooters?: boolean
+  showSchedule?: boolean
 }
 
 function byRound(list: Match[], round: number) {
@@ -46,6 +48,8 @@ export function DoubleElimBracket({
   registrations,
   isDoubles,
   editable,
+  showFooters = true,
+  showSchedule = true,
 }: DoubleElimBracketProps) {
   const main = matches.filter(m => m.bracket === 'winners')
   const basement = matches.filter(m => m.bracket === 'consolation')
@@ -61,13 +65,13 @@ export function DoubleElimBracket({
   const columns = [
     {
       key: 'b2',
-      title: 'Подвал · 1/4 · 5–8',
+      title: 'Подвал · 9–12',
       matches: byRound(basement, 2),
       secondNumbers: BASEMENT_NUMBERS,
       footers: BASEMENT_LABELS,
       footerKind: 'winner' as const,
     },
-    { key: 'b1', title: 'Подвал · 1/4 · 9–16', matches: byRound(basement, 1) },
+    { key: 'b1', title: 'Подвал · 13–16', matches: byRound(basement, 1) },
     { key: 'm1', title: '1/8', matches: byRound(main, 1) },
     {
       key: 'm2',
@@ -101,6 +105,7 @@ export function DoubleElimBracket({
       isDoubles={isDoubles}
       editable={editable}
       seedByPlayer={seedByPlayer}
+      showSchedule={showSchedule}
       {...options}
     />
   )
@@ -118,8 +123,8 @@ export function DoubleElimBracket({
               <div className="de-col__body">
                 {column.matches.map((match, index) => renderCard(match, {
                   highlight: 'final' in column && Boolean(column.final),
-                  secondNumber: secondNumbers?.[index],
-                  footer: footers?.[index],
+                  secondNumber: showFooters ? secondNumbers?.[index] : undefined,
+                  footer: showFooters ? footers?.[index] : undefined,
                   footerKind,
                 }))}
                 {'final' in column && column.final && thirdPlace.length > 0 && (
@@ -150,7 +155,7 @@ function sideName(
 ) {
   if (!captain) return ''
   if (isDoubles && partner) return `${captain.last_name} / ${partner.last_name}`
-  return `${captain.last_name} ${captain.first_name}`
+  return `${captain.last_name} ${captain.first_name.slice(0, 1)}.`
 }
 
 function setScores(match: Match): { home: string[]; away: string[] } {
@@ -195,6 +200,7 @@ function MatchCard({
   secondNumber,
   footer,
   footerKind = 'winner',
+  showSchedule,
 }: {
   match: Match
   isDoubles: boolean
@@ -204,6 +210,7 @@ function MatchCard({
   secondNumber?: number
   footer?: string
   footerKind?: 'winner' | 'loser'
+  showSchedule: boolean
 }) {
   const side1 = sideName(match.player1_detail, match.pair1_player2_detail, isDoubles)
   const side2 = sideName(match.player2_detail, match.pair2_player2_detail, isDoubles)
@@ -239,12 +246,14 @@ function MatchCard({
         </div>
       </div>
 
-      <div className="de-match__meta">
-        <span className="de-match__when">
-          {when || '—'}
-          {match.court ? ` · корт ${match.court}` : ''}
-        </span>
-      </div>
+      {showSchedule && !match.is_historical && (
+        <div className="de-match__meta">
+          <span className="de-match__when">
+            {when || '—'}
+            {match.court ? ` · корт ${match.court}` : ''}
+          </span>
+        </div>
+      )}
 
       {footer && (
         <div className={`de-match__footer de-match__footer--${footerKind}`}>
@@ -255,6 +264,7 @@ function MatchCard({
       {editable && (
         <Link
           to={`/matches/${match.id}/edit`}
+          state={{ from: `/tournaments/${match.tournament}/bracket` }}
           className="de-match__edit"
           title="Изменить матч"
           aria-label={`Изменить матч ${side1 || ''} — ${side2 || ''}`}
