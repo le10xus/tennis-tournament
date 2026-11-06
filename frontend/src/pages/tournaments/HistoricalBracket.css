@@ -76,11 +76,29 @@
 }
 
 .hist-match {
+  position: relative;
   padding: 0.45rem 0.55rem;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 7px;
   font-size: 0.8rem;
+}
+
+.hist-match__edit {
+  position: absolute;
+  top: 0.1rem;
+  right: 0.3rem;
+  z-index: 2;
+  padding: 0 0.2rem;
+  color: var(--text);
+  background: var(--bg);
+  text-decoration: none;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.hist-match__edit:hover {
+  color: var(--accent);
 }
 
 .hist-row {

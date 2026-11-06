@@ -14,14 +14,14 @@
 
 .de-col {
   display: flex;
-  flex: 0 0 188px;
+  flex: 1 1 0;
   flex-direction: column;
-  min-width: 188px;
+  min-width: 180px;
 }
 
 .de-col--final {
-  flex: 0 0 202px;
-  min-width: 202px;
+  flex: 1 1 0;
+  min-width: 200px;
 }
 
 .de-col__title {
@@ -41,6 +41,11 @@
   flex-direction: column;
   justify-content: space-around;
   gap: 0.5rem;
+}
+
+.de-col__gap {
+  flex: 0 0 auto;
+  min-height: 2.7rem;
 }
 
 .de-col--final .de-col__body {
@@ -133,8 +138,10 @@
   min-width: 0;
   color: var(--text-h);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.2;
 }
 
 .de-match__name--tbd {

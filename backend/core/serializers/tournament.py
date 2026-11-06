@@ -76,12 +76,24 @@ def next_pair_id(tournament):
     return (current or 0) + 1
 
 
-class TournamentSerializer(serializers.ModelSerializer):
+class ParticipantsCountMixin:
+    """Для парных турниров счётчик считается по парам, а не по игрокам."""
+
+    def get_players_count(self, obj):
+        if obj.kind == Tournament.Kind.DOUBLES:
+            pairs = getattr(obj, "pairs_count", 0)
+            if pairs:
+                return pairs
+            return (getattr(obj, "players_count", 0) + 1) // 2
+        return getattr(obj, "players_count", 0)
+
+
+class TournamentSerializer(ParticipantsCountMixin, serializers.ModelSerializer):
     kind_display = serializers.CharField(source="get_kind_display", read_only=True)
     gender_type_display = serializers.CharField(source="get_gender_type_display", read_only=True)
     format_display = serializers.CharField(source="get_format_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    players_count = serializers.IntegerField(read_only=True)
+    players_count = serializers.SerializerMethodField()
     photos = TournamentPhotoSerializer(many=True, read_only=True)
     points_category_display = serializers.CharField(
         source="get_points_category_display", read_only=True
@@ -130,7 +142,7 @@ class TournamentSerializer(serializers.ModelSerializer):
         return data
 
 
-class TournamentListSerializer(serializers.ModelSerializer):
+class TournamentListSerializer(ParticipantsCountMixin, serializers.ModelSerializer):
     """Облегчённое представление для списков: без фото, итогов и наград."""
 
     kind_display = serializers.CharField(source="get_kind_display", read_only=True)
@@ -140,7 +152,7 @@ class TournamentListSerializer(serializers.ModelSerializer):
     points_category_display = serializers.CharField(
         source="get_points_category_display", read_only=True
     )
-    players_count = serializers.IntegerField(read_only=True)
+    players_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Tournament

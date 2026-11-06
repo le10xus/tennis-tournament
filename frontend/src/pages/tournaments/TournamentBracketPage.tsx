@@ -495,7 +495,7 @@ export function TournamentBracketPage() {
               matches={matches}
               registrations={registrations}
               isDoubles={isDoubles}
-              editable={false}
+              editable={canEdit}
               showSchedule={showSchedule}
             />
           ) : isHistorical ? (
@@ -503,6 +503,7 @@ export function TournamentBracketPage() {
               matches={matches}
               printTitle={tournament.name}
               printMeta={`${tournament.start_date}${tournament.end_date ? ` — ${tournament.end_date}` : ''}${tournament.location ? ` · ${tournament.location}` : ''}`}
+              editable={canEdit}
             />
           ) : fmt === 'round_robin' ? (
             <RoundRobinView

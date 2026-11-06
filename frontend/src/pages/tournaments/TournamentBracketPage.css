@@ -397,6 +397,8 @@
   .bracket-print .schedule-toggle,
   .bracket-print .only-seeded-toggle,
   .bracket-print .de-match__edit,
+  .bracket-print .hist-match__edit,
+  .bracket-print .de-bracket__hint,
   .bracket-print .de-match__footer,
   .bracket-print .bracket-print__schedule {
     display: none !important;
@@ -593,6 +595,8 @@ body.pdf-export .bracket-print .form-error-global,
 body.pdf-export .bracket-print .schedule-toggle,
 body.pdf-export .bracket-print .only-seeded-toggle,
 body.pdf-export .bracket-print .de-match__edit,
+body.pdf-export .bracket-print .hist-match__edit,
+body.pdf-export .bracket-print .de-bracket__hint,
 body.pdf-export .bracket-print .de-match__footer,
 body.pdf-export .bracket-print .bracket-print__schedule {
   display: none !important;

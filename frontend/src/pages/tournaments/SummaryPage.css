@@ -362,6 +362,21 @@
   color: var(--text-h);
 }
 
+.summary-results__edit-all {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.summary-results__edit {
+  color: var(--text);
+  font-size: 1rem;
+  text-decoration: none;
+}
+
+.summary-results__edit:hover {
+  color: var(--accent);
+}
+
 .summary-gallery__open {
   display: block;
   width: 100%;

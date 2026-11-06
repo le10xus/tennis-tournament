@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { Match } from '../../types'
 import './HistoricalBracket.css'
 
@@ -129,6 +130,7 @@ function roundLabel(round: number, maxRound: number): string {
   if (left === 2) return '1/4'
   if (left === 3) return '1/8'
   if (left === 4) return '1/16'
+  if (left === 5) return '1/32'
   return `R${round}`
 }
 
@@ -142,11 +144,12 @@ function slotTop(match: Match, firstRound: number, firstMin: number): number {
 }
 
 function BracketBoard({
-  matches, maxRound, third,
+  matches, maxRound, third, editable,
 }: {
   matches: Match[]
   maxRound: number
   third?: Match
+  editable: boolean
 }) {
   const rounds = [...new Set(matches.map(match => match.round_number))].sort((a, b) => a - b)
   if (rounds.length === 0) return null
@@ -183,7 +186,7 @@ function BracketBoard({
                   style={{ top: slotTop(match, firstRound, firstMin) }}
                   key={match.id}
                 >
-                  <HistoricalMatchCard match={match} />
+                  <HistoricalMatchCard match={match} editable={editable} />
                 </div>
               ))}
             {third && round === maxRound && (
@@ -192,7 +195,7 @@ function BracketBoard({
                   3-е место
                 </div>
                 <div className="hist-board__slot" style={{ top: thirdTop }}>
-                  <HistoricalMatchCard match={third} />
+                  <HistoricalMatchCard match={third} editable={editable} />
                 </div>
               </>
             )}
@@ -204,11 +207,12 @@ function BracketBoard({
 }
 
 export function HistoricalBracket({
-  matches, printTitle, printMeta,
+  matches, printTitle, printMeta, editable = false,
 }: {
   matches: Match[]
   printTitle?: string
   printMeta?: string
+  editable?: boolean
 }) {
   const winners = matches.filter(match => match.bracket === 'winners')
   const consolation = matches.filter(match => match.bracket === 'consolation')
@@ -280,7 +284,7 @@ export function HistoricalBracket({
                   {groupMatches
                     .filter(match => (match.group || '—') === group)
                     .sort((a, b) => a.slot_index - b.slot_index)
-                    .map(match => <HistoricalMatchCard match={match} key={match.id} />)}
+                    .map(match => <HistoricalMatchCard match={match} editable={editable} key={match.id} />)}
                 </div>
               ))}
           </div>
@@ -289,7 +293,7 @@ export function HistoricalBracket({
 
       <section className="hist-section">
         <h3 className="hist-section__title">Основная сетка</h3>
-        <BracketBoard matches={winners} maxRound={maxRound} third={third} />
+        <BracketBoard matches={winners} maxRound={maxRound} third={third} editable={editable} />
       </section>
 
       {groups.map(({ group, matches: groupMatches }) => (
@@ -303,7 +307,7 @@ export function HistoricalBracket({
                 <h4 className="hist-column__title">{`Раунд ${round}`}</h4>
                 {groupMatches
                   .filter(match => match.round_number === round)
-                  .map(match => <HistoricalMatchCard match={match} key={match.id} />)}
+                  .map(match => <HistoricalMatchCard match={match} editable={editable} key={match.id} />)}
               </div>
             ))}
           </div>
@@ -323,6 +327,7 @@ export function HistoricalBracket({
             matches={consolationMain}
             maxRound={consolationMax}
             third={consolationThird}
+            editable={editable}
           />
         </section>
       )}
@@ -330,7 +335,7 @@ export function HistoricalBracket({
   )
 }
 
-function HistoricalMatchCard({ match }: { match: Match }) {
+function HistoricalMatchCard({ match, editable }: { match: Match; editable: boolean }) {
   const side = winnerSide(match)
   const scores1 = setScores(match, 1)
   const scores2 = setScores(match, 2)
@@ -351,6 +356,17 @@ function HistoricalMatchCard({ match }: { match: Match }) {
       </div>
       {match.score && scores1.length === 0 && (
         <div className="hist-match__score-text">{match.score}</div>
+      )}
+      {editable && (
+        <Link
+          to={`/matches/${match.id}/edit`}
+          state={{ from: `/tournaments/${match.tournament}/bracket` }}
+          className="hist-match__edit"
+          title="Изменить матч"
+          aria-label="Изменить матч"
+        >
+          ✎
+        </Link>
       )}
     </div>
   )

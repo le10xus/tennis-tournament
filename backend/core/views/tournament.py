@@ -93,7 +93,14 @@ class TournamentViewSet(ModelViewSet):
                 filter=Q(
                     tournamentregistration__status=TournamentRegistration.Status.APPROVED
                 ),
-            )
+            ),
+            pairs_count=Count(
+                "tournamentregistration__pair_id",
+                distinct=True,
+                filter=Q(
+                    tournamentregistration__status=TournamentRegistration.Status.APPROVED
+                ),
+            ),
         )
         status_param = self.request.query_params.get("status")
         gender_type = self.request.query_params.get("gender_type")

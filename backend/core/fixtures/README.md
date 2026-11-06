@@ -2,10 +2,10 @@
 
 `imported_tournaments.json` — снимок турнирных данных из рабочей БД:
 
-- 19 турниров (12 перенесённых + 5 карточек чемпионата области 2026 + «Матч городов 2026»);
+- 20 турниров (12 перенесённых + 6 карточек чемпионата области 2026 + «Матч городов 2026»);
 - 218 игроков;
-- 309 заявок, 346 матчей, 50 результатов, 139 начислений очков;
-- 96 фотографий, 18 видео.
+- 411 заявок, 499 матчей, 54 результата, 244 начисления очков;
+- 144 фотографии, 18 видео.
 
 Пользователи (`core.User`) в фикстуру **не входят** — пароли и служебные аккаунты
 не переносятся. Администратор создаётся миграцией `0007_create_default_admin`
@@ -38,6 +38,7 @@ git lfs pull
 ```bash
 python manage.py import_vk_results --apply
 python manage.py create_champ_2026 --apply
+python manage.py import_champ_2026_full --apply
 python manage.py import_champ_singles_2026 --apply
 python manage.py import_champ_doubles_2026 --apply
 python manage.py create_match_cities_2026 --apply

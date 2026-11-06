@@ -28,6 +28,16 @@ function formatWhen(value: string | null) {
   })
 }
 
+const COLUMN_SLOTS: Record<string, number> = {
+  b2: 4,
+  b1: 4,
+  m1: 8,
+  m2: 4,
+  m3: 4,
+  m4: 2,
+  m5: 1,
+}
+
 const BASEMENT_NUMBERS = [1, 2, 3, 4]
 const BASEMENT_LABELS = [
   'Победитель на 8',
@@ -82,13 +92,13 @@ export function DoubleElimBracket({
     },
     {
       key: 'm3',
-      title: '1/4',
+      title: '5–8',
       matches: byRound(main, 3),
       secondNumbers: MAIN_QF2_NUMBERS,
     },
     { key: 'm4', title: '1/2', matches: byRound(main, 4) },
     { key: 'm5', title: 'Финал', matches: byRound(main, 5), final: true },
-  ].filter(column => column.matches.length > 0)
+  ]
 
   const renderCard = (
     match: Match,
@@ -121,12 +131,21 @@ export function DoubleElimBracket({
             <div className={`de-col${'final' in column && column.final ? ' de-col--final' : ''}`} key={column.key}>
               <div className="de-col__title">{column.title}</div>
               <div className="de-col__body">
-                {column.matches.map((match, index) => renderCard(match, {
-                  highlight: 'final' in column && Boolean(column.final),
-                  secondNumber: showFooters ? secondNumbers?.[index] : undefined,
-                  footer: showFooters ? footers?.[index] : undefined,
-                  footerKind,
-                }))}
+                {Array.from(
+                  { length: Math.max(column.matches.length, COLUMN_SLOTS[column.key] ?? 0) },
+                  (_, index) => {
+                    const match = column.matches[index]
+                    if (!match) {
+                      return <div className="de-col__gap" key={`gap-${column.key}-${index}`} aria-hidden />
+                    }
+                    return renderCard(match, {
+                      highlight: 'final' in column && Boolean(column.final),
+                      secondNumber: showFooters ? secondNumbers?.[index] : undefined,
+                      footer: showFooters ? footers?.[index] : undefined,
+                      footerKind,
+                    })
+                  },
+                )}
                 {'final' in column && column.final && thirdPlace.length > 0 && (
                   <div className="de-col__third">
                     <div className="de-col__subtitle">3-е место</div>

@@ -459,7 +459,17 @@ export function SummaryPage() {
 
       {matches.length > 0 && (
         <section className="summary-block">
-          <h2 className="summary-block__title">Результаты матчей</h2>
+          <div className="summary-block__head">
+            <h2 className="summary-block__title">Результаты матчей</h2>
+            {canEdit && (
+              <Link
+                to={`/tournaments/${numId}/bracket?view=bracket`}
+                className="btn btn-ghost summary-results__edit-all"
+              >
+                Редактировать матчи
+              </Link>
+            )}
+          </div>
           <div className="table-wrap">
             <table className="table summary-results">
               <thead>
@@ -467,6 +477,7 @@ export function SummaryPage() {
                   <th>Круг</th>
                   <th>Матч</th>
                   <th className="col-num">Счёт</th>
+                  {canEdit && <th className="col-actions" aria-label="Действия" />}
                 </tr>
               </thead>
               <tbody>
@@ -485,6 +496,19 @@ export function SummaryPage() {
                         </span>
                       </td>
                       <td className="col-num">{match.score || '—'}</td>
+                      {canEdit && (
+                        <td className="col-actions">
+                          <Link
+                            to={`/matches/${match.id}/edit`}
+                            state={{ from: `/tournaments/${numId}/summary` }}
+                            className="summary-results__edit"
+                            title="Изменить матч"
+                            aria-label="Изменить матч"
+                          >
+                            ✎
+                          </Link>
+                        </td>
+                      )}
                     </tr>
                   ))}
               </tbody>
