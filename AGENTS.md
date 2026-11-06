@@ -590,6 +590,17 @@ python manage.py migrate
   Формат часто не указан — выставлен по тексту или `single_elim`. Очки за
   исторические турниры не начисляются (нет сеток). Для 2022–2025 нужен
   отдельный проход/ручная сверка.
+- Снимок данных для второго разработчика:
+  `backend/core/fixtures/imported_tournaments.json` (19 турниров, 218 игроков,
+  346 матчей; пользователи и пароли исключены). Загрузка после `migrate`:
+  `python manage.py loaddata core/fixtures/imported_tournaments.json`.
+  Фото — 98 файлов в Git LFS (`backend/media/tournaments/photos/`), после клона
+  нужен `git lfs pull`.
+- На чистой БД `migrate` падал на `0007_create_default_admin`: `get_user_model()`
+  брал текущую модель, её `save()` через `post_save` создавал `Player` с полем
+  `birth_year`, которого ещё нет до `0010`. Исправлено: историческая модель через
+  `apps.get_model("core", "User")` + `make_password`. Не возвращать
+  `get_user_model()` в миграции.
 
 ## Локальный запуск на Windows (эта машина)
 - `\` в PowerShell не является переносом строки — использовать обратный апостроф.
