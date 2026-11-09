@@ -27,6 +27,14 @@
 .nav-links {
   display: flex;
   gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav-links::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-link {
@@ -54,6 +62,14 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .nav {
+    gap: 0.75rem;
+    padding: 0 0.75rem;
+  }
 }
 
 .nav-username,
@@ -80,6 +96,31 @@
 .nav-logout {
   padding: 0.35rem 0.75rem;
   font-size: 0.85rem;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-h);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--code-bg);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .content {
