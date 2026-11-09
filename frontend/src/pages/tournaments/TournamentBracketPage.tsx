@@ -22,6 +22,17 @@ import './TournamentBracketPage.css'
 const SEED_DRAG_TYPE = 'application/x-seed-row'
 const BRACKET_DRAG_TYPE = 'application/x-bracket-slot'
 
+function themeBackground(): { css: string; rgb: [number, number, number] } {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()
+  const hex = raw.startsWith('#') ? raw.slice(1) : 'ffffff'
+  const full = (hex.length === 3 ? hex.split('').map(ch => ch + ch).join('') : hex).slice(0, 6)
+  const value = Number.parseInt(full, 16)
+  const rgb: [number, number, number] = Number.isNaN(value)
+    ? [255, 255, 255]
+    : [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+  return { css: `#${full.padEnd(6, '0')}`, rgb }
+}
+
 function scheduleWhen(value: string) {
   return new Date(value).toLocaleString('ru-RU', {
     day: '2-digit',
@@ -241,8 +252,9 @@ export function TournamentBracketPage() {
       await new Promise<void>(resolve => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       })
+      const background = themeBackground()
       const canvas = await h2c(element, {
-        backgroundColor: '#14141c',
+        backgroundColor: background.css,
         scale: 1.5,
         useCORS: true,
         logging: false,
@@ -262,11 +274,11 @@ export function TournamentBracketPage() {
         slice.height = height
         const context = slice.getContext('2d')
         if (!context) break
-        context.fillStyle = '#14141c'
+        context.fillStyle = background.css
         context.fillRect(0, 0, slice.width, slice.height)
         context.drawImage(canvas, 0, offset, canvas.width, height, 0, 0, canvas.width, height)
         if (!firstPage) pdf.addPage()
-        pdf.setFillColor(20, 20, 28)
+        pdf.setFillColor(...background.rgb)
         pdf.rect(0, 0, pageW, pageH, 'F')
         pdf.addImage(
           slice.toDataURL('image/jpeg', 0.92),

@@ -579,7 +579,8 @@ body.pdf-export .bracket-print {
   max-width: none;
   box-sizing: border-box;
   padding: 7mm;
-  background: #14141c;
+  background: var(--bg);
+  color: var(--text-h);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -662,7 +663,7 @@ body.pdf-export .de-match__row {
 
 body.pdf-export .de-match__row + .de-match__row,
 body.pdf-export .hist-row + .hist-row {
-  border-top: 1px solid #3a3a4a;
+  border-top: 1px solid var(--border);
 }
 
 body.pdf-export .de-col__third {
