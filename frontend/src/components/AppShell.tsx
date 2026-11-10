@@ -14,7 +14,10 @@ export function AppShell() {
   return (
     <div className="shell">
       <nav className="nav">
-        <span className="nav-brand">🎾 Tennis Tournament</span>
+        <span className="nav-brand">
+          <img className="nav-brand__logo" src="/bt35-logo.jpg" alt="" />
+          БТ35 тур
+        </span>
 
         <div className="nav-links">
           <NavLink to="/" end className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>

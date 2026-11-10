@@ -103,7 +103,10 @@ export function LoginPage() {
     <div className="login-page">
       <form className="login-card" onSubmit={onSubmit}>
         <div className="login-header">
-          <span className="login-brand">🎾 Tennis Tournament</span>
+          <span className="login-brand">
+            <img className="login-brand__logo" src="/bt35-logo.jpg" alt="" />
+            БТ35 тур
+          </span>
           <h1 className="login-title">{isRegister ? 'Регистрация' : 'Вход в систему'}</h1>
         </div>
 
