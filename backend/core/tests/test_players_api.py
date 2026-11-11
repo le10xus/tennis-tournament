@@ -1,6 +1,8 @@
+from datetime import date
+
 import pytest
 
-from core.models import Player
+from core.models import Match, Player, Tournament, TournamentPointsAward, TournamentResult
 
 
 @pytest.mark.django_db
@@ -84,3 +86,102 @@ class TestPlayersAPI:
         p = player_factory()
         response = organizer_client.delete(f"{self.url}{p.id}/")
         assert response.status_code == 403
+
+
+def _tournament(name, **overrides):
+    defaults = {
+        "name": name,
+        "start_date": date.today(),
+        "status": Tournament.Status.FINISHED,
+        "format": Tournament.Format.SINGLE_ELIM,
+    }
+    defaults.update(overrides)
+    return Tournament.objects.create(**defaults)
+
+
+def _match(tournament, player1, player2, winner, **overrides):
+    defaults = {
+        "tournament": tournament,
+        "bracket": Match.Bracket.WINNERS,
+        "round_number": 1,
+        "player1": player1,
+        "player2": player2,
+        "winner": winner,
+        "status": Match.Status.FINISHED,
+    }
+    defaults.update(overrides)
+    return Match.objects.create(**defaults)
+
+
+@pytest.mark.django_db
+class TestPlayerRecord:
+    def test_win_loss_ignores_bye_and_unfinished(self, api_client, player_factory):
+        player = player_factory()
+        opponent = player_factory()
+        other = player_factory()
+        cup = _tournament("Cup")
+
+        _match(cup, player, opponent, player, round_number=2)
+        _match(cup, other, player, other)
+        _match(cup, player, None, player, status=Match.Status.WALKOVER)
+        _match(cup, player, other, None, status=Match.Status.SCHEDULED, round_number=3)
+
+        data = api_client.get(f"/api/players/{player.id}/").json()
+        assert data["wins"] == 1
+        assert data["losses"] == 1
+
+    def test_doubles_partner_shares_the_result(self, api_client, player_factory):
+        captain = player_factory()
+        partner = player_factory()
+        opponent = player_factory()
+        opponent_partner = player_factory()
+        cup = _tournament("Doubles")
+        _match(
+            cup,
+            captain,
+            opponent,
+            captain,
+            pair1_player2=partner,
+            pair2_player2=opponent_partner,
+        )
+
+        assert api_client.get(f"/api/players/{partner.id}/").json()["wins"] == 1
+        assert api_client.get(f"/api/players/{opponent_partner.id}/").json()["losses"] == 1
+
+    def test_prize_places_once_per_tournament(self, api_client, player_factory):
+        player = player_factory()
+        cup = _tournament("Cup")
+        TournamentResult.objects.create(tournament=cup, place=1, name="A", player=player)
+        TournamentPointsAward.objects.create(
+            tournament=cup, player=player, place="1", points=40
+        )
+        fifth = _tournament("Fifth")
+        TournamentResult.objects.create(tournament=fifth, place=5, name="A", player=player)
+        third = _tournament("Third")
+        TournamentPointsAward.objects.create(
+            tournament=third, player=player, place="3", points=10
+        )
+
+        data = api_client.get(f"/api/players/{player.id}/").json()
+        assert data["prize_places"] == {"1": 1, "2": 0, "3": 1}
+
+    def test_prize_place_from_finished_bracket_only(self, api_client, player_factory):
+        winner = player_factory()
+        loser = player_factory()
+        finished = _tournament("Final")
+        _match(finished, winner, loser, winner)
+        live = _tournament("Live", status=Tournament.Status.IN_PROGRESS)
+        _match(live, winner, loser, winner)
+
+        winner_data = api_client.get(f"/api/players/{winner.id}/").json()
+        loser_data = api_client.get(f"/api/players/{loser.id}/").json()
+        assert winner_data["wins"] == 2
+        assert winner_data["prize_places"] == {"1": 1, "2": 0, "3": 0}
+        assert loser_data["losses"] == 2
+        assert loser_data["prize_places"]["2"] == 1
+
+    def test_list_omits_record(self, api_client, player_factory):
+        player = player_factory()
+        row = next(item for item in api_client.get("/api/players/").json()["results"] if item["id"] == player.id)
+        assert "wins" not in row
+        assert "prize_places" not in row

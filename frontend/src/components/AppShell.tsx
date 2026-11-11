@@ -15,7 +15,7 @@ export function AppShell() {
     <div className="shell">
       <nav className="nav">
         <span className="nav-brand">
-          <img className="nav-brand__logo" src="/bt35-logo.jpg" alt="" />
+          <img className="nav-brand__logo" src={`${import.meta.env.BASE_URL}bt35-logo.jpg`} alt="" />
           БТ35 тур
         </span>
 

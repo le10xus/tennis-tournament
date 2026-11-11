@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from core.models import Player
+from core.services.player_stats import player_record
 
 
 class PlayerSerializer(serializers.ModelSerializer):
@@ -19,3 +20,34 @@ class PlayerSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class PlayerDetailSerializer(PlayerSerializer):
+    """Карточка игрока: W-L и призовые места. В списке этих полей нет."""
+
+    wins = serializers.SerializerMethodField()
+    losses = serializers.SerializerMethodField()
+    prize_places = serializers.SerializerMethodField()
+
+    class Meta(PlayerSerializer.Meta):
+        fields = [*PlayerSerializer.Meta.fields, "wins", "losses", "prize_places"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._records = {}
+
+    def _record(self, player):
+        record = self._records.get(player.pk)
+        if record is None:
+            record = player_record(player.pk)
+            self._records[player.pk] = record
+        return record
+
+    def get_wins(self, player):
+        return self._record(player)["wins"]
+
+    def get_losses(self, player):
+        return self._record(player)["losses"]
+
+    def get_prize_places(self, player):
+        return self._record(player)["prize_places"]

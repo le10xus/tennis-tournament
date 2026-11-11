@@ -338,18 +338,22 @@ def points_for(category, scheme, count, place):
     return int(row.get(place, 0))
 
 
+def assigned_places(tournament, matches):
+    """Место каждого игрока по фактической сетке: id игрока → «1», «2», «5-8»…"""
+    scheme = resolve_scheme(tournament, matches)
+    if scheme == SCHEME_DOUBLE:
+        return places_double_elim(matches)
+    if scheme == SCHEME_GROUP:
+        return places_group(matches)
+    return places_olympic(matches)
+
+
 def build_awards(tournament, matches=None):
     if not tournament.points_category:
         return []
 
     matches = list(matches if matches is not None else Match.objects.filter(tournament=tournament))
-    scheme = resolve_scheme(tournament, matches)
-    if scheme == SCHEME_DOUBLE:
-        places = places_double_elim(matches)
-    elif scheme == SCHEME_GROUP:
-        places = places_group(matches)
-    else:
-        places = places_olympic(matches)
+    places = assigned_places(tournament, matches)
 
     if not places:
         return []

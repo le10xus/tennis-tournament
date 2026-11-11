@@ -6,6 +6,12 @@ import type { Registration } from '../../api/registrations'
 import type { Player } from '../../types'
 import './PlayerPage.css'
 
+const PRIZE_ROWS = [
+  { place: '1' as const, label: '1 место' },
+  { place: '2' as const, label: '2 место' },
+  { place: '3' as const, label: '3 место' },
+]
+
 const TOURNAMENT_STATUS_BADGE: Record<string, string> = {
   draft: 'badge--gray',
   registration: 'badge--blue',
@@ -66,6 +72,14 @@ export function PlayerPage() {
       {/* ── Инфо-карточка ── */}
       <div className="player-card">
         <div className="player-card__grid">
+          <InfoRow label="W-L" value={`${player.wins ?? 0}-${player.losses ?? 0}`} />
+          {PRIZE_ROWS.filter(row => (player.prize_places?.[row.place] ?? 0) > 0).map(row => (
+            <InfoRow
+              key={row.place}
+              label={row.label}
+              value={String(player.prize_places?.[row.place] ?? 0)}
+            />
+          ))}
           <InfoRow label="Пол" value={player.gender_display} />
           {player.city && <InfoRow label="Город" value={player.city} />}
           <InfoRow

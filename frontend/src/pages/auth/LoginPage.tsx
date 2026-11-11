@@ -104,7 +104,7 @@ export function LoginPage() {
       <form className="login-card" onSubmit={onSubmit}>
         <div className="login-header">
           <span className="login-brand">
-            <img className="login-brand__logo" src="/bt35-logo.jpg" alt="" />
+            <img className="login-brand__logo" src={`${import.meta.env.BASE_URL}bt35-logo.jpg`} alt="" />
             БТ35 тур
           </span>
           <h1 className="login-title">{isRegister ? 'Регистрация' : 'Вход в систему'}</h1>

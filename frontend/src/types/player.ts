@@ -21,6 +21,9 @@ export interface Player {
   points_doubles: number
   is_ftvo: boolean
   created_at: string
+  wins?: number
+  losses?: number
+  prize_places?: { '1': number; '2': number; '3': number }
 }
 
 export interface PlayerFormData {
