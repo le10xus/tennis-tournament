@@ -9,6 +9,13 @@
   align-items: start;
 }
 
+.home-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
 @media (max-width: 760px) {
   .home-grid {
     grid-template-columns: 1fr;

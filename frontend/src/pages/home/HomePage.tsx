@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { playersApi, tournamentsApi } from '../../api'
+import { TournamentCalendar } from '../../components/TournamentCalendar'
 import type { Player, TournamentListItem } from '../../types'
 import './HomePage.css'
 
@@ -16,7 +17,31 @@ const STATUS_BADGE: Record<string, string> = {
 type GenderTab = 'male' | 'female'
 type DisciplineTab = 'singles' | 'doubles'
 
+const NEAREST_STATUSES = ['registration', 'registration_closed', 'in_progress', 'summing_up']
+const ACTIVE_NEAREST = ['registration_closed', 'in_progress', 'summing_up']
+
+async function loadAllTournaments(): Promise<TournamentListItem[]> {
+  const pageSize = 500
+  const first = await tournamentsApi.list({ page_size: String(pageSize) })
+  if (first.count <= first.results.length) return first.results
+  const pages = Math.ceil(first.count / pageSize)
+  const rest = await Promise.all(
+    Array.from({ length: pages - 1 }, (_, index) =>
+      tournamentsApi.list({ page_size: String(pageSize), page: String(index + 2) }),
+    ),
+  )
+  return [...first.results, ...rest.flatMap(page => page.results)]
+}
+
+function todayIso(): string {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
 export function HomePage() {
+  const [tournaments, setTournaments] = useState<TournamentListItem[]>([])
   const [nearestTournament, setNearestTournament] = useState<TournamentListItem | null>(null)
   const [tournamentLoading, setTournamentLoading] = useState(true)
 
@@ -28,32 +53,38 @@ export function HomePage() {
   const [activeDiscipline, setActiveDiscipline] = useState<DisciplineTab>('singles')
 
   useEffect(() => {
-    Promise.all([
-      tournamentsApi.list({ status: 'registration', page_size: '50' }),
-      tournamentsApi.list({ status: 'registration_closed', page_size: '50' }),
-      tournamentsApi.list({ status: 'in_progress', page_size: '50' }),
-      tournamentsApi.list({ status: 'summing_up', page_size: '50' }),
-    ])
-      .then(([reg, closed, inProgress, summingUp]) => {
-        const all = [...reg.results, ...closed.results, ...inProgress.results, ...summingUp.results]
-        const today = new Date().toISOString().slice(0, 10)
-        const activeStatuses = ['registration_closed', 'in_progress', 'summing_up']
+    let cancelled = false
+    loadAllTournaments()
+      .then(all => {
+        if (cancelled) return
+        setTournaments(all)
+        const today = todayIso()
         const upcoming = all
-          .filter(t => t.start_date >= today || activeStatuses.includes(t.status))
-          .sort((a, b) => a.start_date.localeCompare(b.start_date))
+          .filter(t => NEAREST_STATUSES.includes(t.status))
+          .filter(t => t.start_date >= today || ACTIVE_NEAREST.includes(t.status))
+          .sort((a, b) => a.start_date.localeCompare(b.start_date) || a.id - b.id)
         setNearestTournament(upcoming[0] ?? null)
       })
-      .finally(() => setTournamentLoading(false))
+      .finally(() => {
+        if (!cancelled) setTournamentLoading(false)
+      })
 
     Promise.all([
       playersApi.list({ gender: 'male', page_size: '500' }),
       playersApi.list({ gender: 'female', page_size: '500' }),
     ])
       .then(([male, female]) => {
+        if (cancelled) return
         setMalePlayers(male.results)
         setFemalePlayers(female.results)
       })
-      .finally(() => setPlayersLoading(false))
+      .finally(() => {
+        if (!cancelled) setPlayersLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const disciplinePoints = (p: Player) =>
@@ -66,7 +97,7 @@ export function HomePage() {
   return (
     <div className="home-page">
       <div className="home-grid">
-
+        <div className="home-col">
         {/* ── Ближайший турнир ── */}
         <div className="home-card">
           <h2 className="home-card__title">Ближайший турнир</h2>
@@ -116,6 +147,12 @@ export function HomePage() {
               </Link>
             </div>
           )}
+        </div>
+
+        <div className="home-card">
+          <h2 className="home-card__title">Календарь</h2>
+          <TournamentCalendar tournaments={tournaments} loading={tournamentLoading} />
+        </div>
         </div>
 
         {/* ── Топ-10 игроков ── */}
