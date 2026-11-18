@@ -1,0 +1,16 @@
+.match-stats-edit__header {
+  margin-bottom: 1rem;
+}
+
+.match-stats-edit__section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.match-stats-edit__import {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}

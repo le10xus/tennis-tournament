@@ -4,6 +4,9 @@ import { matchesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { categoryLabel } from '../../utils/categories'
 import type { Match } from '../../types'
+import { hasMatchStatistics } from './matchStatisticsUtils'
+import { MatchStatsCard } from './MatchStatsCard'
+import './MatchPage.css'
 
 export function MatchPage() {
   const { id } = useParams()
@@ -13,7 +16,6 @@ export function MatchPage() {
   const [match, setMatch] = useState<Match | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
   useEffect(() => {
     matchesApi.get(Number(id))
       .then(setMatch)
@@ -29,118 +31,173 @@ export function MatchPage() {
     </div>
   )
 
-  const isDoubles = !!match.pair1_player2_detail || !!match.pair2_player2_detail
+  const isDoubles = match.kind === 'doubles'
+  const homeWins = match.winner !== null && match.winner === match.player1
+  const awayWins = match.winner !== null && match.winner === match.player2
 
-  const side1 = isDoubles && match.pair1_player2_detail && match.player1_detail
-    ? `${match.player1_detail.last_name} / ${match.pair1_player2_detail.last_name}`
-    : (match.player1_detail?.last_name ?? 'TBD')
-
-  const side2 = isDoubles && match.pair2_player2_detail && match.player2_detail
-    ? `${match.player2_detail.last_name} / ${match.pair2_player2_detail.last_name}`
-    : (match.player2_detail?.last_name ?? 'TBD')
-
-  const winnerLabel = match.winner_detail
-    ? (match.winner === match.player1 ? side1 : side2)
-    : null
-
-  const setsText = [
+  const sets = [
     [match.set1_home, match.set1_away],
     [match.set2_home, match.set2_away],
     [match.set3_home, match.set3_away],
-  ]
-    .filter(([home, away]) => home !== null && away !== null)
-    .map(([home, away]) => `${home}:${away}`)
-    .join(' ')
+  ].filter(([h, a]) => h !== null && a !== null) as [number, number][]
+
+  const setsText = sets.map(([h, a]) => `${h}:${a}`).join(' ')
   const scoreText = match.score || setsText
 
+  const showStats = hasMatchStatistics(match.statistics)
+
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div className="match-page">
       <div className="t-page__header">
         <div>
-          <Link to={`/tournaments/${match.tournament}`} className="back-link">
-            ← {match.tournament_name}
-          </Link>
           <h1 className="page-title">Матч · Раунд {match.round_number}</h1>
         </div>
         {canEdit && (
-          <Link to={`/matches/${match.id}/edit`} className="btn btn-primary">
-            Редактировать
-          </Link>
+          <div className="match-page__actions">
+            <Link to={`/matches/${match.id}/statistics/edit`} className="btn btn-ghost">
+              Редактировать статистику
+            </Link>
+            <Link to={`/matches/${match.id}/edit`} className="btn btn-primary">
+              Редактировать матч
+            </Link>
+          </div>
         )}
       </div>
 
-      <div className="t-card">
-        <div className="match-versus">
-          <PlayerSide
-            name={side1}
-            playerId={match.player1}
-            partner={match.pair1_player2 ? { id: match.pair1_player2, name: match.pair1_player2_detail!.last_name } : null}
-            isWinner={match.player1 !== null && match.winner === match.player1}
-          />
-          <span className="match-vs">vs</span>
-          <PlayerSide
-            name={side2}
-            playerId={match.player2}
-            partner={match.pair2_player2 ? { id: match.pair2_player2, name: match.pair2_player2_detail!.last_name } : null}
-            isWinner={match.player2 !== null && match.winner === match.player2}
-          />
+      <article className="match-card">
+        <Link to={`/tournaments/${match.tournament}`} className="match-card__tournament">
+          {match.tournament_name}
+        </Link>
+
+        <div className="match-card__meta">
+          <span>{categoryLabel(match.kind, match.gender_type)}</span>
+          {match.scheduled_at && (
+            <span>
+              {new Date(match.scheduled_at).toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </span>
+          )}
+          {match.court != null && <span>Корт {match.court}</span>}
         </div>
 
-        <div className="t-card__grid" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-          <InfoRow label="Счёт"><span>{scoreText || '—'}</span></InfoRow>
-          {winnerLabel && <InfoRow label="Победитель"><span>{winnerLabel}</span></InfoRow>}
-          <InfoRow label="Категория"><span>{categoryLabel(match.kind, match.gender_type)}</span></InfoRow>
-          {match.scheduled_at && (
-            <InfoRow label="Дата">
-              <span>{new Date(match.scheduled_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-            </InfoRow>
-          )}
-          <InfoRow label="Турнир">
-            <Link to={`/tournaments/${match.tournament}`} className="player-ref-link">
-              {match.tournament_name}
-            </Link>
-          </InfoRow>
+        <div className="match-card__scoreboard">
+          <SideColumn
+            match={match}
+            side="home"
+            isDoubles={isDoubles}
+            isWinner={homeWins}
+          />
+          <SetScoreColumn sets={sets} scoreText={scoreText} homeWins={homeWins} awayWins={awayWins} />
+          <SideColumn
+            match={match}
+            side="away"
+            isDoubles={isDoubles}
+            isWinner={awayWins}
+          />
         </div>
-      </div>
+      </article>
+
+      {showStats && match.statistics && (
+        <MatchStatsCard statistics={match.statistics} match={match} />
+      )}
+      {!showStats && (
+        <p className="state-msg" style={{ marginTop: '1rem' }}>
+          Статистика пока не заполнена.
+          {canEdit && (
+            <>
+              {' '}
+              <Link to={`/matches/${match.id}/statistics/edit`}>Добавить статистику</Link>
+            </>
+          )}
+        </p>
+      )}
     </div>
   )
 }
 
-function PlayerSide({
-  name, playerId, partner, isWinner,
+function SetScoreColumn({
+  sets,
+  scoreText,
+  homeWins,
+  awayWins,
 }: {
-  name: string
-  playerId: number | null
-  partner: { id: number; name: string } | null
-  isWinner: boolean
+  sets: [number, number][]
+  scoreText: string
+  homeWins: boolean
+  awayWins: boolean
 }) {
-  if (playerId === null) {
+  if (sets.length === 0) {
     return (
-      <div className={`match-side ${isWinner ? 'match-side--winner' : ''}`}>
-        <span className="match-side__name">{name}</span>
+      <div className="match-card__sets">
+        <span className="match-card__score-fallback">{scoreText || '—'}</span>
       </div>
     )
   }
   return (
-    <div className={`match-side ${isWinner ? 'match-side--winner' : ''}`}>
-      <Link to={`/players/${playerId}`} className="match-side__name player-ref-link">
-        {name.split(' / ')[0]}
-      </Link>
-      {partner && (
-        <Link to={`/players/${partner.id}`} className="match-side__partner player-ref-link">
-          / {partner.name}
-        </Link>
-      )}
-      {isWinner && <span className="match-side__crown">🏆</span>}
+    <div className="match-card__sets">
+      {sets.map(([home, away], idx) => (
+        <div key={idx} className="match-card__set-row">
+          <span className={homeWins || (!awayWins && home > away) ? '' : 'match-card__set-cell--loser'}>
+            {home}
+          </span>
+          <span className={awayWins || (!homeWins && away > home) ? '' : 'match-card__set-cell--loser'}>
+            {away}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
 
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+function SideColumn({
+  match,
+  side,
+  isDoubles,
+  isWinner,
+}: {
+  match: Match
+  side: 'home' | 'away'
+  isDoubles: boolean
+  isWinner: boolean
+}) {
+  const captain = side === 'home' ? match.player1_detail : match.player2_detail
+  const partner = side === 'home' ? match.pair1_player2_detail : match.pair2_player2_detail
+  const captainId = side === 'home' ? match.player1 : match.player2
+  const partnerId = side === 'home' ? match.pair1_player2 : match.pair2_player2
+
+  const className = `match-card__side${side === 'away' ? ' match-card__side--away' : ''}`
+
+  if (!captain) {
+    return (
+      <div className={className}>
+        <span className="match-card__name">TBD</span>
+      </div>
+    )
+  }
+
   return (
-    <div className="t-info-row">
-      <span className="info-label">{label}</span>
-      <span className="info-value">{children}</span>
+    <div className={className}>
+      {captainId ? (
+        <Link
+          to={`/players/${captainId}`}
+          className={`match-card__name${isWinner ? ' match-card__name--winner' : ''}`}
+        >
+          {captain.last_name}
+        </Link>
+      ) : (
+        <span className="match-card__name">{captain.last_name}</span>
+      )}
+      {isDoubles && partner && partnerId && (
+        <Link to={`/players/${partnerId}`} className="match-card__partner">
+          {partner.last_name}
+        </Link>
+      )}
+      {isDoubles && partner && !partnerId && (
+        <span className="match-card__partner">{partner.last_name}</span>
+      )}
     </div>
   )
 }

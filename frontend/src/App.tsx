@@ -7,6 +7,7 @@ import { PlayerFormPage } from './pages/players/PlayerFormPage'
 import { MatchListPage } from './pages/matches/MatchListPage'
 import { MatchPage } from './pages/matches/MatchPage'
 import { MatchFormPage } from './pages/matches/MatchFormPage'
+import { MatchStatisticsEditPage } from './pages/matches/MatchStatisticsEditPage'
 import { TournamentListPage } from './pages/tournaments/TournamentListPage'
 import { TournamentPage } from './pages/tournaments/TournamentPage'
 import { TournamentFormPage } from './pages/tournaments/TournamentFormPage'
@@ -57,6 +58,7 @@ export default function App() {
               <Route element={<RequireEdit />}>
                 <Route path="new" element={<MatchFormPage />} />
                 <Route path=":id/edit" element={<MatchFormPage />} />
+                <Route path=":id/statistics/edit" element={<MatchStatisticsEditPage />} />
               </Route>
             </Route>
 

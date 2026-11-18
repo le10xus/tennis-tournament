@@ -52,7 +52,6 @@ export function MatchFormPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [tournaments, setTournaments] = useState<TournamentListItem[]>([])
   const [registrations, setRegistrations] = useState<Registration[]>([])
-
   useEffect(() => {
     const loadRef = Promise.all([
       playersApi.list({ page_size: '500' }).then(d => setPlayers(d.results)),

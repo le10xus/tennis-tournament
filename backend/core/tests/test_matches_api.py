@@ -114,6 +114,44 @@ class TestMatchesAPI:
         assert len(results) == 1
         assert results[0]["status"] == "finished"
 
+    def test_patch_match_statistics(self, organizer_client, registered_players):
+        tournament, players = registered_players
+        match = Match.objects.create(
+            tournament=tournament,
+            player1=players[0],
+            player2=players[1],
+        )
+        stats = {
+            "home": {
+                "aces": 2,
+                "double_faults": 6,
+                "first_serve_pct": 58,
+                "winners": 15,
+                "points_won": 48,
+                "points_total": 96,
+            },
+            "away": {
+                "aces": 0,
+                "double_faults": 7,
+                "first_serve_pct": 48,
+                "winners": 4,
+                "points_won": 48,
+                "points_total": 96,
+            },
+        }
+        response = organizer_client.patch(
+            f"{self.url}{match.id}/",
+            {"statistics": stats},
+            format="json",
+        )
+        assert response.status_code == 200, response.content
+        data = response.json()
+        assert data["statistics"]["home"]["aces"] == 2
+        assert data["statistics"]["away"]["double_faults"] == 7
+
+        match.refresh_from_db()
+        assert match.statistics["home"]["winners"] == 15
+
     def test_anon_cannot_create_match(self, api_client, registered_players):
         tournament, players = registered_players
         response = api_client.post(

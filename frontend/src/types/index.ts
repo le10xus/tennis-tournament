@@ -1,5 +1,11 @@
 export type { Player, PlayerFormData, ApiErrors, Gender, RatingType } from './player'
 export type { Match, MatchFormData, MatchApiErrors, MatchStatus, GenderType, PlayerBrief } from './match'
+export type {
+  MatchStatistics,
+  MatchSideStats,
+  MatchPlayerServeStats,
+  MatchSideStatKey,
+} from './matchStatistics'
 export type { Tournament, TournamentListItem, TournamentBrief, TournamentFormData, TournamentApiErrors, TournamentPhoto, TournamentPointsAward, TournamentResult, TournamentVideo } from './tournament'
 export type { User, UserFormData, UserApiErrors, UserRole, Profile, ProfileFormData, ProfileApiErrors } from './user'
 

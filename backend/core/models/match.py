@@ -73,6 +73,18 @@ class Match(models.Model):
     set3_home = models.PositiveSmallIntegerField(null=True, blank=True)
     set3_away = models.PositiveSmallIntegerField(null=True, blank=True)
     score = models.CharField(max_length=50, blank=True, help_text='Например: "6:4 7:5"')
+    statistics = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name="Статистика матча",
+        help_text="Подача и очки по сторонам (home/away); опционально по игрокам в doubles.",
+    )
+    statistics_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        verbose_name="Ссылка на статистику",
+    )
 
     def clean(self):
         errors = {}

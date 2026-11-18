@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from core.models import Match, Player
+from core.services.match_statistics import validate_statistics_shape
 
 
 class PlayerBriefSerializer(serializers.ModelSerializer):
@@ -44,7 +45,7 @@ class MatchSerializer(serializers.ModelSerializer):
             "next_match", "next_slot", "loser_next_match", "loser_next_slot",
             "round_number", "slot_index", "scheduled_at", "court", "score",
             "set1_home", "set1_away", "set2_home", "set2_away",
-            "set3_home", "set3_away", "is_historical",
+            "set3_home", "set3_away", "is_historical", "statistics", "statistics_url",
         ]
         read_only_fields = [
             "id", "bracket", "next_match", "next_slot",
@@ -108,4 +109,25 @@ class MatchSerializer(serializers.ModelSerializer):
                     Match.Status.FINISHED if has_result else Match.Status.SCHEDULED
                 )
 
+        if "statistics" in data:
+            p_ids = [
+                getattr(p, "pk", p)
+                for p in (p1, p1p2, p2, p2p2)
+                if p
+            ]
+            try:
+                data["statistics"] = validate_statistics_shape(
+                    data.get("statistics"), p_ids or None
+                )
+            except ValueError as exc:
+                raise serializers.ValidationError({"statistics": str(exc)}) from exc
+
         return data
+
+    def validate_statistics(self, value):
+        if value is None:
+            return None
+        try:
+            return validate_statistics_shape(value, None)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc

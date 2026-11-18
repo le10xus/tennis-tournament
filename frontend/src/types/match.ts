@@ -1,3 +1,5 @@
+import type { MatchStatistics } from './matchStatistics'
+
 export type MatchStatus = 'scheduled' | 'in_progress' | 'finished' | 'walkover'
 export type GenderType = 'male' | 'female' | 'mixed'
 
@@ -47,6 +49,8 @@ export interface Match {
   set3_home: number | null
   set3_away: number | null
   is_historical: boolean
+  statistics: MatchStatistics | null
+  statistics_url: string
 }
 
 export interface MatchFormData {
@@ -69,6 +73,8 @@ export interface MatchFormData {
   set2_away: number | null
   set3_home: number | null
   set3_away: number | null
+  statistics?: MatchStatistics | null
+  statistics_url?: string
 }
 
-export type MatchApiErrors = Partial<Record<keyof MatchFormData | 'non_field_errors', string[]>>
+export type MatchApiErrors = Partial<Record<keyof MatchFormData | 'non_field_errors' | 'statistics', string[]>>

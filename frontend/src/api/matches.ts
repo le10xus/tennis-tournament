@@ -10,4 +10,6 @@ export const matchesApi = {
   create: (data: MatchFormData) => http.post<Match>('/matches/', data),
   update: (id: number, data: Partial<MatchFormData>) => http.patch<Match>(`/matches/${id}/`, data),
   delete: (id: number) => http.delete(`/matches/${id}/`),
+  importStatistics: (id: number, url?: string) =>
+    http.post<Match>(`/matches/${id}/import-statistics/`, url ? { url } : {}),
 }

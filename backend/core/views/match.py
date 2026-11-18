@@ -1,17 +1,40 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.utils import timezone
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from core.models import Match, Tournament
 from core.permissions import RolePermission
 from core.serializers import MatchSerializer
 from core.services.points import apply_awards
+from core.services.statistics_import import import_match_statistics
 
 
 class MatchViewSet(ModelViewSet):
     permission_classes = [RolePermission]
     serializer_class = MatchSerializer
     queryset = Match.objects.none()
+
+    @action(detail=True, methods=["post"], url_path="import-statistics")
+    def import_statistics(self, request, pk=None):
+        match = self.get_object()
+        url = (request.data.get("url") or match.statistics_url or "").strip()
+        if not url:
+            return Response(
+                {"detail": "Укажите ссылку на статистику или сохраните её в матче."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            import_match_statistics(match, url)
+        except DjangoValidationError as exc:
+            if hasattr(exc, "message_dict"):
+                return Response(exc.message_dict, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        match.refresh_from_db()
+        return Response(MatchSerializer(match).data)
 
     def perform_update(self, serializer):
         match = serializer.save()
